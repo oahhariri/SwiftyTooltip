@@ -13,6 +13,7 @@ public protocol TooltipItemConfigType: Identifiable&Equatable {
     var spacing: CGFloat { get }
     var backgroundColor: Color { get }
     var arrowWidth: CGFloat { get }
+    var spotlightCutInteractive: Bool { get }
     var spotlightCutPadding: CGFloat { get }
     var spotlightCutCornerRadius: CornerRadius { get }
 }

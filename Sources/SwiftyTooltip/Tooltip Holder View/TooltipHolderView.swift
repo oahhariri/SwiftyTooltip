@@ -70,6 +70,7 @@ extension TooltipHolderView {
         )
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
+        .contentShape(enabled: tooltipInfo.item.spotlightCutInteractive)
         .onTapGesture {
             let generator = UIImpactFeedbackGenerator(style: .heavy)
             generator.impactOccurred()

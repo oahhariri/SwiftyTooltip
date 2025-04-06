@@ -57,3 +57,13 @@ extension View {
         modifier(ViewFrameAdapter(viewFrame: viewFrame,coordinateSpace: coordinateSpace))
     }
 }
+
+extension View {
+    @ViewBuilder func contentShape(enabled: Bool) -> some View {
+        if enabled {
+            self.contentShape(Rectangle())
+        } else {
+            self
+        }
+    }
+}
