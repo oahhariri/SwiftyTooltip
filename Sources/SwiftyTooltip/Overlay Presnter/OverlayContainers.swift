@@ -21,6 +21,6 @@ struct OverlayContainerConfig: ContainerConfigurationProtocol {
     var autoDismiss: ContainerViewAutoDismiss? = .disable
     var alignment: Alignment? = .top
     var dismissGesture: ContainerViewDismissGesture? = .disable
-    var transition: AnyTransition? = .none
+    var transition: AnyTransition? = .opacity
     
 }

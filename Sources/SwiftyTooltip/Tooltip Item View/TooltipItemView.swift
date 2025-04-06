@@ -81,7 +81,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
 extension TooltipItemView {
     private func reset() {
         viewModel.tooltipInfo = nil
-        OverlayContainersHelper.dismiss()
+        OverlayContainersHelper.dismiss(animated: true)
     }
     
     private func resetHelper(item: Item?, targets: [String : CGRect]) {

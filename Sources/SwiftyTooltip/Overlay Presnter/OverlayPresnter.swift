@@ -43,8 +43,8 @@ struct OverlayPresnter<FullscreenView: View,ViewType:Equatable&Identifiable>: Vi
     }
     
     private func dimiss() {
-        OverlayContainersHelper.dismiss(id: viewID, animated: false)
-        OverlayContainersHelper.dismiss(animated: false)
+        OverlayContainersHelper.dismiss(id: viewID, animated: true)
+        OverlayContainersHelper.dismiss(animated: true)
     }
 }
 
