@@ -19,11 +19,23 @@ internal struct SpotlightBackgroundView: View {
     let cutFarmeRect: CGRect
     var cornerRadius:CornerRadius = .circle
     
+    private let glowRadius: CGFloat = 5
+    private let glowOpacity: Double = 0.7
+    
     var body: some View {
         ZStack {
+            
             RoundedHoleShape(holeRect: cutFarmeRect,
                              cornerRadius: getCornerRadius())
             .fill(backgroundColor, style: FillStyle(eoFill: true))
+            
+            RoundedHoleShape(holeRect: cutFarmeRect,
+                           cornerRadius: getCornerRadius())
+            .stroke(Color.white, lineWidth: glowRadius)
+            .blur(radius: glowRadius)
+            .opacity(glowOpacity)
+            .compositingGroup()
+            .blendMode(.screen)
         }
     }
     
@@ -44,8 +56,7 @@ private struct RoundedHoleShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.addRect(rect)
-        let roundedHole = Path(roundedRect: holeRect,
-                               cornerRadius: cornerRadius)
+        let roundedHole = Path(roundedRect: holeRect, cornerRadius: cornerRadius)
         path.addPath(roundedHole)
         return path
     }

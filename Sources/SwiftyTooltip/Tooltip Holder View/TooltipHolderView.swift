@@ -220,7 +220,8 @@ extension TooltipHolderView {
         var yPos = targetFrame.midY
         
         let spacing = item.spacing
-        let arrowHeight = item.arrowWidth / 2
+        var arrowHeight = tooltipInfo.item.arrowWidth / 2
+            arrowHeight = arrowHeight / 2
         
         switch rtlSide(item.side) {
         case .top:
