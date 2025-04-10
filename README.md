@@ -137,7 +137,7 @@ Use `.tooltipTarget` to mark the view that the tooltip should point to. This tel
 )
 ```
 
-For improved readability and cleaner usage, you can also create a custom view extension:
+For cleaner and more readable code, you can extend `View` like this:
 
 ```swift
 extension View {
@@ -148,12 +148,50 @@ extension View {
 }
 ```
 
-And then use it like this:
+And use it like this:
 
 ```swift
 .tooltipTarget(context: .homeView, .firstLabel)
 ```
 
-This helps keep your view code simple and expressive.
-
 ---
+
+### 💡 Step 3: Show the Tooltip
+
+Now you're ready to show the tooltip.  
+You just need to call `.tooltip` on the container where you want the tooltip to appear.
+
+```swift
+@State var tooltipItem: HomeToolTips? = .firstLabel
+
+.tooltip(
+    context: MainTooltipContext.homeView,
+    item: $tooltipItem,
+    backgroundColor: Color.gray.opacity(0.5),
+    content: { toolTipView($0) }
+)
+```
+
+Here’s an example of how you can define `toolTipView` to show different content depending on the tooltip item:
+
+```swift
+@ViewBuilder
+func toolTipView(_ item: HomeToolTips) -> some View {
+    switch item {
+    case .firstLabel:
+        VStack {
+            Text("This is the first tooltip")
+        }
+        .frame(width: 180, height: 100)
+
+    case .secondLabel:
+        VStack {
+            Text("Need help?")
+            Button("Got it") {
+                // dismiss logic here
+            }
+        }
+        .frame(width: 200, height: 120)
+    }
+}
+```
