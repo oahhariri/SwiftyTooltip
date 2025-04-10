@@ -130,9 +130,11 @@ struct MyApp: App {
 
 ---
 
-### 🎯 Step 2: Add a Tooltip Target to a View
+### 🎯 Step 2: Mark the View You Want the Tooltip to Point To
 
-Now tell SwiftyTooltip *where* the tooltip should point by marking the target view.
+SwiftyTooltip needs to know **which view** on the screen the tooltip should be attached to — this is called the **tooltip target**.
+
+To do this, apply the `.tooltipTarget` modifier directly to the view you want the tooltip to anchor to (for example, a button, label, or icon).
 
 ```swift
 .tooltipTarget(
@@ -141,7 +143,14 @@ Now tell SwiftyTooltip *where* the tooltip should point by marking the target vi
 )
 ```
 
-✅ Tip: You can simplify this using a view extension:
+This tells the system:  
+> “When showing a tooltip for `firstLabel`, place it relative to this view.”
+
+---
+
+✅ **Optional: Make it cleaner with a helper extension**
+
+To simplify usage and improve readability, you can add a small extension to `View`:
 
 ```swift
 extension View {
@@ -152,20 +161,20 @@ extension View {
 }
 ```
 
-And then use it like this:
+Now your code looks like this:
 
 ```swift
 .tooltipTarget(context: .homeView, .firstLabel)
 ```
 
-This improves code readability and makes your view code more elegant.
+Much cleaner and easier to read, especially with multiple tooltips.
 
 ---
 
 ### ✨ Step 3: Show the Tooltip
 
 Now you're ready to show a tooltip!  
-Just call `.tooltip()` and pass in the `context`, a `@State` binding to the item you want to show, and the tooltip content.
+Just call `.tooltip()` on your main container view. SwiftyTooltip handles the rest — it figures out where and how to display the tooltip.
 
 ```swift
 @State var tooltipItem: HomeToolTips? = .firstLabel
@@ -178,11 +187,13 @@ Just call `.tooltip()` and pass in the `context`, a `@State` binding to the item
 )
 ```
 
+This binds the current tooltip item to the view, and shows a custom tooltip whenever the state matches a target.
+
 ---
 
 ### 🧱 Example Tooltip Content
 
-Here’s a basic example of a `toolTipView(_:)` that shows different layouts for each tooltip item:
+Here’s a simple example of how to show different tooltip content based on the active tooltip item:
 
 ```swift
 @ViewBuilder
@@ -206,4 +217,4 @@ func toolTipView(_ item: HomeToolTips) -> some View {
 }
 ```
 
-This lets you fully customize the tooltip for each item using any SwiftUI view.
+You can customize this view to include anything — images, icons, links, buttons, or entire layouts — all inside SwiftUI.
