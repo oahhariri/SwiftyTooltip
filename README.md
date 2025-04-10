@@ -1,6 +1,6 @@
 # SwiftyTooltip
 
-**SwiftyTooltip** is a lightweight, 100% SwiftUI-native library for displaying animated, safe-area-aware tooltips in your iOS apps. It intelligently positions each tooltip exactly where it should appear and fully supports both **Left-to-Right (LTR)** and **Right-to-Left (RTL)** layout directions.
+**SwiftyTooltip** is a lightweight, 100% SwiftUI-native library that makes it easy to display beautiful, animated, and safe-area-aware tooltips in your iOS apps. It handles smart positioning, adapts to screen space, and fully supports both **Left-to-Right (LTR)** and **Right-to-Left (RTL)** layouts.
 
 ---
 
@@ -16,11 +16,11 @@
 
 - ✅ Built entirely with SwiftUI  
 - ✅ Works with any SwiftUI view  
-- ✅ Auto-positions tooltips based on available space  
+- ✅ Auto-positions tooltips using smart layout rules  
 - ✅ RTL & LTR layout direction support  
-- ✅ Safe area protection  
+- ✅ Avoids safe area overlaps  
 - ✅ Smooth built-in animations  
-- ✅ Simple and lightweight API  
+- ✅ Clean, simple API — easy to integrate  
 
 ---
 
@@ -43,13 +43,15 @@ In Xcode:
 
 ## 📌 Before You Start: Define Tooltip Context and Items
 
-Before using SwiftyTooltip in your views, you need to define a **Tooltip Context** and **Tooltip Items**.
+Before you can show a tooltip, you need to define two things:
+1. **A tooltip context** — to group tooltips by screen or section.
+2. **Tooltip items** — to describe how each tooltip should behave and look.
 
 ---
 
 ### 🧭 Define a Tooltip Context
 
-Each context helps group tooltips based on the current screen or flow. This ensures tooltips don’t overlap or conflict.
+`TooltipContextType` tells SwiftyTooltip *where* tooltips belong (which screen or flow), and helps prevent overlapping or conflicting tooltips.
 
 ```swift
 enum MainTooltipContext: String, TooltipContextType {
@@ -65,9 +67,10 @@ enum MainTooltipContext: String, TooltipContextType {
 
 ### 🏗 Define Tooltip Items
 
-You should create a new `TooltipItemConfigType` enum for each screen that shows tooltips. Ideally, each tooltip context should have a matching tooltip item configuration.
+`TooltipItemConfigType` defines the *style and layout* of each tooltip.  
+You should create a new enum for each screen or view that displays tooltips.
 
-Tooltip items define how each tooltip looks and behaves — like its position, style, and spacing.
+This is where you specify how the tooltip should appear — including direction, spacing, background, etc.
 
 ```swift
 enum HomeToolTips: TooltipItemConfigType {
@@ -110,7 +113,8 @@ enum HomeToolTips: TooltipItemConfigType {
 
 ### 🧱 Step 1: Add `.tooltipContainer()` to the Root View of Your App
 
-This sets up the tooltip environment and must be placed at the root of your SwiftUI view hierarchy.
+You must attach `.tooltipContainer()` to your root view — usually inside the main `App` entry point.  
+This sets up the tooltip system for the entire app.
 
 ```swift
 @main
@@ -128,7 +132,7 @@ struct MyApp: App {
 
 ### 🎯 Step 2: Add a Tooltip Target to a View
 
-Use `.tooltipTarget` to mark the view that the tooltip should point to. This tells SwiftyTooltip where to anchor the tooltip on screen.
+Now tell SwiftyTooltip *where* the tooltip should point by marking the target view.
 
 ```swift
 .tooltipTarget(
@@ -137,7 +141,7 @@ Use `.tooltipTarget` to mark the view that the tooltip should point to. This tel
 )
 ```
 
-For cleaner and more readable code, you can extend `View` like this:
+✅ Tip: You can simplify this using a view extension:
 
 ```swift
 extension View {
@@ -148,18 +152,20 @@ extension View {
 }
 ```
 
-And use it like this:
+And then use it like this:
 
 ```swift
 .tooltipTarget(context: .homeView, .firstLabel)
 ```
 
+This improves code readability and makes your view code more elegant.
+
 ---
 
-### 💡 Step 3: Show the Tooltip
+### ✨ Step 3: Show the Tooltip
 
-Now you're ready to show the tooltip.  
-You just need to call `.tooltip` on the container where you want the tooltip to appear.
+Now you're ready to show a tooltip!  
+Just call `.tooltip()` and pass in the `context`, a `@State` binding to the item you want to show, and the tooltip content.
 
 ```swift
 @State var tooltipItem: HomeToolTips? = .firstLabel
@@ -172,7 +178,11 @@ You just need to call `.tooltip` on the container where you want the tooltip to 
 )
 ```
 
-Here’s an example of how you can define `toolTipView` to show different content depending on the tooltip item:
+---
+
+### 🧱 Example Tooltip Content
+
+Here’s a basic example of a `toolTipView(_:)` that shows different layouts for each tooltip item:
 
 ```swift
 @ViewBuilder
@@ -188,10 +198,12 @@ func toolTipView(_ item: HomeToolTips) -> some View {
         VStack {
             Text("Need help?")
             Button("Got it") {
-                // dismiss logic here
+                // Handle dismiss here
             }
         }
         .frame(width: 200, height: 120)
     }
 }
 ```
+
+This lets you fully customize the tooltip for each item using any SwiftUI view.
