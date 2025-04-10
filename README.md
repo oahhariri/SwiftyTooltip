@@ -1,6 +1,8 @@
 # SwiftyTooltip
 
-**SwiftyTooltip** is a lightweight, 100% SwiftUI-native library that makes it easy to display beautiful, animated, and safe-area-aware tooltips in your iOS apps. It handles smart positioning, adapts to screen space, and fully supports both **Left-to-Right (LTR)** and **Right-to-Left (RTL)** layouts.
+**SwiftyTooltip** is a lightweight, 100% SwiftUI-native library that makes it easy to display beautiful, animated, and safe-area-aware tooltips in your iOS apps. It handles smart positioning, adapts to screen space, and fully supports both **Left-to-Right (LTR)** and **Right-to-Left (RTL)** layouts.  
+
+It can also be used to create simple walkthroughs or guided onboarding flows — without needing any extra setup or complexity.
 
 ---
 
@@ -16,10 +18,11 @@
 
 - ✅ Built entirely with SwiftUI  
 - ✅ Works with any SwiftUI view  
-- ✅ Auto-positions tooltips
+- ✅ Auto-positions tooltips  
 - ✅ RTL & LTR layout direction support  
 - ✅ Avoids safe area overlaps  
 - ✅ Smooth built-in animations  
+- ✅ Great for walkthroughs and guided onboarding  
 - ✅ Clean, simple API — easy to integrate  
 
 ---
@@ -132,9 +135,8 @@ struct MyApp: App {
 
 ### 🎯 Step 2: Mark the View You Want the Tooltip to Point To
 
-SwiftyTooltip needs to know **which view** on the screen the tooltip should be attached to — this is called the **tooltip target**.
-
-To do this, apply the `.tooltipTarget` modifier directly to the view you want the tooltip to anchor to (for example, a button, label, or icon).
+SwiftyTooltip needs to know **which view** the tooltip should point to.  
+You do this by applying `.tooltipTarget()` to the view you want the tooltip to anchor itself to — such as a button, label, or icon.
 
 ```swift
 .tooltipTarget(
@@ -144,13 +146,13 @@ To do this, apply the `.tooltipTarget` modifier directly to the view you want th
 ```
 
 This tells the system:  
-> “When showing a tooltip for `firstLabel`, place it relative to this view.”
+> “When showing a tooltip for `firstLabel`, attach it to this view.”
 
 ---
 
-✅ **Optional: Make it cleaner with a helper extension**
+✅ **Cleaner Option: Add a View Extension**
 
-To simplify usage and improve readability, you can add a small extension to `View`:
+You can simplify your code using a small helper extension:
 
 ```swift
 extension View {
@@ -161,20 +163,24 @@ extension View {
 }
 ```
 
-Now your code looks like this:
+And now you can write:
 
 ```swift
 .tooltipTarget(context: .homeView, .firstLabel)
 ```
 
-Much cleaner and easier to read, especially with multiple tooltips.
+Much more readable, especially when working with multiple tooltips.
 
 ---
 
 ### ✨ Step 3: Show the Tooltip
 
-Now you're ready to show a tooltip!  
-Just call `.tooltip()` on your main container view. SwiftyTooltip handles the rest — it figures out where and how to display the tooltip.
+Now you're ready to display a tooltip!  
+Call `.tooltip()` on any container view and pass in:
+
+- the tooltip context  
+- a `@State` binding to the current tooltip item  
+- the tooltip content view  
 
 ```swift
 @State var tooltipItem: HomeToolTips? = .firstLabel
@@ -187,13 +193,13 @@ Just call `.tooltip()` on your main container view. SwiftyTooltip handles the re
 )
 ```
 
-This binds the current tooltip item to the view, and shows a custom tooltip whenever the state matches a target.
+This displays the tooltip based on which item is active — great for walkthroughs or multi-step flows.
 
 ---
 
 ### 🧱 Example Tooltip Content
 
-Here’s a simple example of how to show different tooltip content based on the active tooltip item:
+Here’s a simple example of a tooltip view that adapts to each tooltip item:
 
 ```swift
 @ViewBuilder
@@ -217,4 +223,5 @@ func toolTipView(_ item: HomeToolTips) -> some View {
 }
 ```
 
-You can customize this view to include anything — images, icons, links, buttons, or entire layouts — all inside SwiftUI.
+This gives you full control over the tooltip’s content and layout using standard SwiftUI views.  
+You can even chain multiple items together for an easy-to-build product tour or onboarding experience.
