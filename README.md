@@ -16,7 +16,7 @@
 
 - ✅ Built entirely with SwiftUI  
 - ✅ Works with any SwiftUI view  
-- ✅ Auto-positions tooltips using smart layout rules  
+- ✅ Auto-positions tooltips
 - ✅ RTL & LTR layout direction support  
 - ✅ Avoids safe area overlaps  
 - ✅ Smooth built-in animations  
