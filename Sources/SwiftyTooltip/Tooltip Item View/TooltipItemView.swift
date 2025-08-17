@@ -106,7 +106,7 @@ extension TooltipItemView {
     
     func handelDismissToolTip() {
         DispatchQueue.main.async {
-            reset()
+            self.item = nil
         }
     }
 }
