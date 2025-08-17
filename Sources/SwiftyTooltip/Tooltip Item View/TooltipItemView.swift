@@ -58,7 +58,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
     @ViewBuilder func show(tooltipInfo: TooltipInfoModel<Item>?) -> some View {
         TooltipHolderView(tooltipInfo: tooltipInfo,
                           backgroundColor: backgroundColor,
-                          dismissToolTip: dismissToolTip) { tooltipInfo in
+                          dismissToolTip: handelDismissToolTip) { tooltipInfo in
             self.tooltipContent(tooltipInfo)
                 .background(tooltipInfo.backgroundColor)
                 .cornerRadius(13)

@@ -87,7 +87,7 @@ extension TooltipHolderView {
             switch tooltipInfo.item.backgroundBehavuior {
             case .block:
                 startAnimation()
-            case .dismiss:
+            case .dismiss, .simultaneousTabs:
                 dismissToolTip?()
             }
             
