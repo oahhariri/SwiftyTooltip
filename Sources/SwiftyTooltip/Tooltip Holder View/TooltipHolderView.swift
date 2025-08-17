@@ -77,6 +77,7 @@ extension TooltipHolderView {
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
         .simultaneousGesture(TapGesture().onEnded({
             guard tooltipInfo.item.backgroundBehavuior == .simultaneousTabs else {return}
+            
             dismissToolTip?()
         }))
         .onTapGesture {
