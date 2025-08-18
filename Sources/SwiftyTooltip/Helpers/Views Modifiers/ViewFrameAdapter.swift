@@ -13,11 +13,11 @@ struct ViewFrameAdapter: ViewModifier {
     let coordinateSpace: CoordinateSpace
     
     func body(content: Content) -> some View {
-        if #available(iOS 16.0, *) {
-            view(content: content)
-        } else {
+        //if #available(iOS 16.0, *) {
+         //   view(content: content)
+       // } else {
             lagacyView(content: content)
-        }
+       // }
         
     }
     

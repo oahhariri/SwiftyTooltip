@@ -56,7 +56,9 @@ internal struct TooltipItemView<Context: TooltipContextType,
     }
     
     @ViewBuilder func show(tooltipInfo: TooltipInfoModel<Item>?) -> some View {
-        TooltipHolderView(tooltipInfo: tooltipInfo, backgroundColor: backgroundColor) { tooltipInfo in
+        TooltipHolderView(tooltipInfo: tooltipInfo,
+                          backgroundColor: backgroundColor,
+                          dismissToolTip: handelDismissToolTip) { tooltipInfo in
             self.tooltipContent(tooltipInfo)
                 .background(tooltipInfo.backgroundColor)
                 .cornerRadius(13)
@@ -100,6 +102,13 @@ extension TooltipItemView {
         }
         
         viewModel.assign(context, item: item, frame: frame)
+    }
+    
+    func handelDismissToolTip() {
+        OverlayContainersHelper.dismiss(animated: false)
+        DispatchQueue.main.async {
+            self.item = nil
+        }
     }
 }
 

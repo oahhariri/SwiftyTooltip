@@ -23,11 +23,15 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
     @State private var jumpOffset: CGFloat = 0
     
     var backgroundColor: Color = Color.gray.opacity(0.50)
+    var dismissToolTip:(()->())?
     
-    init(tooltipInfo: TooltipInfoModel<Item>?, backgroundColor: Color, content: @escaping (Item) -> TooltipContent) {
+    init(tooltipInfo: TooltipInfoModel<Item>?, backgroundColor: Color,
+         dismissToolTip:(()->())?=nil,
+         content: @escaping (Item) -> TooltipContent) {
         self.tooltipInfo = tooltipInfo
         self.content = content
         self.backgroundColor = backgroundColor
+        self.dismissToolTip = dismissToolTip
     }
     
     var body: some View {
@@ -71,10 +75,23 @@ extension TooltipHolderView {
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
+        .simultaneousGesture(TapGesture().onEnded({
+            guard tooltipInfo.item.backgroundBehavuior == .simultaneousTabs else {return}
+            
+            dismissToolTip?()
+        }))
         .onTapGesture {
+            guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
             let generator = UIImpactFeedbackGenerator(style: .heavy)
             generator.impactOccurred()
-            startAnimation()
+            
+            switch tooltipInfo.item.backgroundBehavuior {
+            case .block:
+                startAnimation()
+            case .dismiss, .simultaneousTabs:
+                dismissToolTip?()
+            }
+            
         }
     }
     
