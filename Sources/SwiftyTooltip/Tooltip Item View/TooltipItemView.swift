@@ -105,9 +105,9 @@ extension TooltipItemView {
     }
     
     func handelDismissToolTip() {
-        OverlayContainersHelper.dismiss(animated: false)
         DispatchQueue.main.async {
             self.item = nil
+            OverlayContainersHelper.dismiss(animated: false)
         }
     }
 }

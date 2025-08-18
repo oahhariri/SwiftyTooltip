@@ -75,11 +75,6 @@ extension TooltipHolderView {
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
-        .simultaneousGesture(TapGesture().onEnded({
-            guard tooltipInfo.item.backgroundBehavuior == .simultaneousTabs else {return}
-            
-            dismissToolTip?()
-        }))
         .onTapGesture {
             guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
             let generator = UIImpactFeedbackGenerator(style: .heavy)
@@ -89,7 +84,9 @@ extension TooltipHolderView {
             case .block:
                 startAnimation()
             case .dismiss, .simultaneousTabs:
-                dismissToolTip?()
+                DispatchQueue.main.asyncAfter {
+                    dismissToolTip?()
+                }
             }
             
         }
