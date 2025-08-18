@@ -84,7 +84,7 @@ extension TooltipHolderView {
             case .block:
                 startAnimation()
             case .dismiss, .simultaneousTabs:
-                DispatchQueue.main.asyncAfter {
+                DispatchQueue.main.async {
                     dismissToolTip?()
                 }
             }
