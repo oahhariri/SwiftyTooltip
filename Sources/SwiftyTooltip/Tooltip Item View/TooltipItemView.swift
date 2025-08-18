@@ -19,6 +19,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
     @ViewBuilder private let tooltipContent: (Item) -> TooltipContent
     @ViewBuilder private var content: () -> Content
     var backgroundColor: Color = Color.gray.opacity(0.50)
+    @State var didDisaper: Bool = true
     
     init(context: Context, item: Binding<Item?>, backgroundColor: Color , @ViewBuilder tooltipContent: @escaping (Item) -> TooltipContent, content: @escaping () -> Content) {
         self._item = item
@@ -40,12 +41,19 @@ internal struct TooltipItemView<Context: TooltipContextType,
             }
             .onDisappear {
                 reset()
+                didDisaper = true
             }
             .onFirstAppear {
                 assign(item: item, viewModel.context.id)
             }
+            .onAppear {
+                guard didDisaper else {return}
+                self.didDisaper = false
+                assign(item: item, viewModel.context.id)
+            }
             .uiKitViewControllerLifeCycle { lifecycle in
                 guard lifecycle == .onDeinit || lifecycle == .viewDidDisappear || lifecycle == .viewWillDisappear else { return }
+                didDisaper = true
                 reset()
             }
             .overlayCover($viewModel.tooltipInfo) { tooltipInfo in
