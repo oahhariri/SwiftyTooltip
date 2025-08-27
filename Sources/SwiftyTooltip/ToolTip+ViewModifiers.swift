@@ -9,9 +9,18 @@ import SwiftUI
 import SwiftUIOverlayContainer
 
 struct TooltipEnvironmentModifier: ViewModifier {
+    var context: String?
+    
+    var containerName: String {
+        guard let context else { return OverlayContainers.tooltipOverlayContiners }
+        
+        return "\(OverlayContainers.tooltipOverlayContiners)_\(context)"
+    }
+    
     func body(content: Content) -> some View {
         content
-            .overlayContainer(OverlayContainers.tooltipOverlayContiners, containerConfiguration: OverlayContainerConfig())
+            .overlayContainer(containerName,
+                              containerConfiguration: OverlayContainerConfig())
             .coordinateSpace(name: tooltipCoordinateSpace)
     }
 }
@@ -20,8 +29,12 @@ struct TooltipEnvironmentModifier: ViewModifier {
 
 public extension View {
     
-    @ViewBuilder func tooltipContainer() -> some View {
-        modifier(TooltipEnvironmentModifier())
+//    @ViewBuilder func tooltipContainer() -> some View {
+//        modifier(TooltipEnvironmentModifier())
+//    }
+    
+    @ViewBuilder func tooltipContainer<ContextType: TooltipContextType>(_ context: ContextType) -> some View {
+        modifier(TooltipEnvironmentModifier(context: context.id))
     }
     
     @ViewBuilder func tooltipTarget<Context: TooltipContextType>(context: Context, _ id: String) -> some View {
