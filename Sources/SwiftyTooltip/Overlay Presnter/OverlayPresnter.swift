@@ -10,6 +10,7 @@ import SwiftUI
 
 struct OverlayPresnter<FullscreenView: View,ViewType:Equatable&Identifiable>: ViewModifier {
     
+    let contextId: String
     @State var viewID: UUID = UUID()
     @Binding var item: ViewType?
     @ViewBuilder var fullscreenView:(ViewType) -> FullscreenView
@@ -25,7 +26,7 @@ struct OverlayPresnter<FullscreenView: View,ViewType:Equatable&Identifiable>: Vi
                 
                 dimiss()
                 
-                OverlayContainersHelper.show(id: viewID) {
+                OverlayContainersHelper.show(contextId: contextId, id: viewID) {
                     viewHolder(view: view)
                 }
                 
@@ -43,16 +44,18 @@ struct OverlayPresnter<FullscreenView: View,ViewType:Equatable&Identifiable>: Vi
     }
     
     private func dimiss() {
-        OverlayContainersHelper.dismiss(id: viewID, animated: true)
-        OverlayContainersHelper.dismiss(animated: true)
+        OverlayContainersHelper.dismiss(contextId: contextId, id: viewID, animated: true)
+        OverlayContainersHelper.dismiss(contextId: contextId, animated: true)
     }
 }
 
 extension View {
-    func overlayCover<Content: View, Item:Equatable&Identifiable>(_ item:Binding<Item?>,
+    func overlayCover<Content: View, Item:Equatable&Identifiable>(contextId: String,
+                                                                  _ item:Binding<Item?>,
                                                                   content: @escaping (Item) -> Content)-> some View {
         
-        modifier(OverlayPresnter(item: item,
+        modifier(OverlayPresnter(contextId:contextId,
+                                 item: item,
                                 fullscreenView: content))
     }
 }
