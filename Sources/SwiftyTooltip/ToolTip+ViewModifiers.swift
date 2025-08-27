@@ -11,16 +11,34 @@ import SwiftUIOverlayContainer
 struct TooltipEnvironmentModifier: ViewModifier {
      var contexts: [String] = []
     func body(content: Content) -> some View {
-        content
-            .apply(contexts)
-            .coordinateSpace(name: tooltipCoordinateSpace)
+        
+     //   ZStack {
+            
+            content
+                .overlay(TooltipEnvironmentHelper(contexts: contexts))
+                .coordinateSpace(name: tooltipCoordinateSpace)
+            
+            
+      //  }
+     
     }
 }
-extension View {
-    @ViewBuilder func apply(_ contexts: [String]) -> some View {
+//extension View {
+//    @ViewBuilder func apply(_ contexts: [String]) -> some View {
+//        TooltipEnvironmentHelper(contexts) {
+//            self
+//        }
+//    }
+//}
+
+struct TooltipEnvironmentHelper: View {
+    var contexts: [String] = []
+    
+    public var body: some View {
         ForEach(contexts, id: \.self) { context in
             overlayContainer("\(OverlayContainers.tooltipOverlayContiners)_\(context)",
-                                  containerConfiguration: OverlayContainerConfig())        }
+                             containerConfiguration: OverlayContainerConfig())
+        }
     }
 }
 // MARK: - View Extensions
