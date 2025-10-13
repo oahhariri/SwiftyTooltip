@@ -48,7 +48,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
                 guard lifecycle == .onDeinit || lifecycle == .viewDidDisappear || lifecycle == .viewWillDisappear else { return }
                 reset()
             }
-            .overlayCover($viewModel.tooltipInfo) { tooltipInfo in
+            .overlayCover(contextId: viewModel.context.id,$viewModel.tooltipInfo) { tooltipInfo in
                 show(tooltipInfo: tooltipInfo)
             }
             .onTooltipAction(handelActions)
@@ -83,7 +83,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
 extension TooltipItemView {
     private func reset() {
         viewModel.tooltipInfo = nil
-        OverlayContainersHelper.dismiss(animated: true)
+        OverlayContainersHelper.dismiss(contextId:  viewModel.context.id,animated: true)
     }
     
     private func resetHelper(item: Item?, targets: [String : CGRect]) {
@@ -107,7 +107,7 @@ extension TooltipItemView {
     func handelDismissToolTip() {
         DispatchQueue.main.async {
             self.item = nil
-            OverlayContainersHelper.dismiss(animated: false)
+            OverlayContainersHelper.dismiss(contextId:  viewModel.context.id,animated: false)
         }
     }
 }
