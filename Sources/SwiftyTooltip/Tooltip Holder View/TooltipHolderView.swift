@@ -76,33 +76,11 @@ extension TooltipHolderView {
         .edgesIgnoringSafeArea(.all)
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
         .onTapGesture {
-            guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.impactOccurred()
-            
-            switch tooltipInfo.item.backgroundBehavuior {
-            case .block:
-                startAnimation()
-            case .dismiss, .simultaneousTabs:
-                DispatchQueue.main.async {
-                    dismissToolTip?()
-                }
-            }
+            handelDissmissAction()
             
         }
-        .simultaneousGesture(DragGesture(minimumDistance: 15, coordinateSpace: .local).onEnded({ _ in
-            guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.impactOccurred()
-            
-            switch tooltipInfo.item.backgroundBehavuior {
-            case .block:
-                startAnimation()
-            case .dismiss, .simultaneousTabs:
-                DispatchQueue.main.async {
-                    dismissToolTip?()
-                }
-            }
+        .simultaneousGesture(DragGesture(minimumDistance: 15, coordinateSpace: .local).onChanged({ _ in
+            handelDissmissAction()
         }))
     }
     
@@ -312,4 +290,21 @@ extension TooltipHolderView {
         return CGPoint(x: xPos, y: yPos)
     }
     
+}
+
+extension TooltipHolderView {
+    func handelDissmissAction() {
+        guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
+        
+        switch tooltipInfo.item.backgroundBehavuior {
+        case .block:
+            startAnimation()
+        case .dismiss, .simultaneousTabs:
+            DispatchQueue.main.async {
+                dismissToolTip?()
+            }
+        }
+    }
 }
