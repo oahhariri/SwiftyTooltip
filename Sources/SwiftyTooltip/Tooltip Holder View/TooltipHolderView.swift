@@ -90,6 +90,20 @@ extension TooltipHolderView {
             }
             
         }
+        .simultaneousGesture(DragGesture(minimumDistance: 15, coordinateSpace: .local).onEnded({ _ in
+            guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
+            let generator = UIImpactFeedbackGenerator(style: .heavy)
+            generator.impactOccurred()
+            
+            switch tooltipInfo.item.backgroundBehavuior {
+            case .block:
+                startAnimation()
+            case .dismiss, .simultaneousTabs:
+                DispatchQueue.main.async {
+                    dismissToolTip?()
+                }
+            }
+        }))
     }
     
     @ViewBuilder func tooltipView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
