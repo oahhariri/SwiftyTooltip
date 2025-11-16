@@ -76,11 +76,11 @@ extension TooltipHolderView {
         .edgesIgnoringSafeArea(.all)
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
         .onTapGesture {
-            handelDissmissAction()
+            handelDissmissAction(tooltipInfo)
             
         }
         .simultaneousGesture(DragGesture(minimumDistance: 15, coordinateSpace: .local).onChanged({ _ in
-            handelDissmissAction()
+            handelDissmissAction(tooltipInfo)
         }))
     }
     
@@ -293,7 +293,7 @@ extension TooltipHolderView {
 }
 
 extension TooltipHolderView {
-    func handelDissmissAction() {
+    func handelDissmissAction(_ tooltipInfo: TooltipInfoModel<Item>) {
         guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
         let generator = UIImpactFeedbackGenerator(style: .heavy)
         generator.impactOccurred()
