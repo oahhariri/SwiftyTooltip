@@ -76,20 +76,12 @@ extension TooltipHolderView {
         .edgesIgnoringSafeArea(.all)
         .contentShape(enabled: !tooltipInfo.item.spotlightCutInteractive)
         .onTapGesture {
-            guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.impactOccurred()
-            
-            switch tooltipInfo.item.backgroundBehavuior {
-            case .block:
-                startAnimation()
-            case .dismiss, .simultaneousTabs:
-                DispatchQueue.main.async {
-                    dismissToolTip?()
-                }
-            }
+            handelDissmissAction(tooltipInfo)
             
         }
+        .simultaneousGesture(DragGesture(minimumDistance: 15, coordinateSpace: .local).onChanged({ _ in
+            handelDissmissAction(tooltipInfo)
+        }))
     }
     
     @ViewBuilder func tooltipView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
@@ -298,4 +290,21 @@ extension TooltipHolderView {
         return CGPoint(x: xPos, y: yPos)
     }
     
+}
+
+extension TooltipHolderView {
+    func handelDissmissAction(_ tooltipInfo: TooltipInfoModel<Item>) {
+        guard tooltipInfo.item.backgroundBehavuior != .simultaneousTabs else {return}
+        let generator = UIImpactFeedbackGenerator(style: .heavy)
+        generator.impactOccurred()
+        
+        switch tooltipInfo.item.backgroundBehavuior {
+        case .block:
+            startAnimation()
+        case .dismiss, .simultaneousTabs:
+            DispatchQueue.main.async {
+                dismissToolTip?()
+            }
+        }
+    }
 }
