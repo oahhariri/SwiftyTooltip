@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import OrderedCollections
 
 internal struct TooltipItemView<Context: TooltipContextType,
                        Item: TooltipItemConfigType,
@@ -36,13 +37,13 @@ internal struct TooltipItemView<Context: TooltipContextType,
                     return
                 }
                 
-                assign(item: item, viewModel.context.id)
+                Task { await assign(item: item, viewModel.context.id) }
             }
             .onDisappear {
                 reset()
             }
             .onFirstAppear {
-                assign(item: item, viewModel.context.id)
+                Task { await  assign(item: item, viewModel.context.id) }
             }
             .uiKitViewControllerLifeCycle { lifecycle in
                 guard lifecycle == .onDeinit || lifecycle == .viewDidDisappear || lifecycle == .viewWillDisappear else { return }
@@ -53,6 +54,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
             }
             .onTooltipAction(handelActions)
             .disabledScroll(isDisabled: viewModel.tooltipInfo != nil)
+            .environment(\.currentTooltipContext, viewModel.context.id)
     }
     
     @ViewBuilder func show(tooltipInfo: TooltipInfoModel<Item>?) -> some View {
@@ -67,26 +69,28 @@ internal struct TooltipItemView<Context: TooltipContextType,
     }
     
     func handelActions(_ action: TooltipActions) {
-        Task {
+        Task {@TooltipsBackgroundActor in
             switch action {
             case .register(let context, id: let id, frame: let frame):
                 await viewModel.registerTarget(context,id, frame: frame)
-                assign(item: item, context)
+                await assign(item: item, context)
             case .unregister(let context,id: let id):
                 await viewModel.unregisterTarget(context,id)
-                assign(item: item, context)
+                await assign(item: item, context)
             }
         }
     }
 }
 
 extension TooltipItemView {
+    @MainActor
     private func reset() {
         viewModel.tooltipInfo = nil
         OverlayContainersHelper.dismiss(contextId:  viewModel.context.id,animated: true)
     }
     
-    private func resetHelper(item: Item?, targets: [String : CGRect]) {
+    @MainActor
+    private func resetHelper(item: Item?, targets: OrderedDictionary<String, CGRect>) {
         if let invalidItem = viewModel.tooltipInfo?.item, invalidItem == item && targets[invalidItem.id] == nil {
             self.item = nil
         }
@@ -94,16 +98,18 @@ extension TooltipItemView {
         reset()
     }
     
-    private func assign(item: Item?, _ context: String) {
+    @TooltipsBackgroundActor
+    private func assign(item: Item?, _ context: String) async {
         guard let item,
-              let frame = viewModel.targets[item.id], frame.size.isValidSize() else {
-            resetHelper(item: item, targets: viewModel.targets)
+              let frame = await viewModel.getTarget(item.id), frame.size.isValidSize() else {
+            await resetHelper(item: item, targets: viewModel.getTargets())
             return
         }
         
-        viewModel.assign(context, item: item, frame: frame)
+       await viewModel.assign(context, item: item, frame: frame)
     }
     
+    @MainActor
     func handelDismissToolTip() {
         DispatchQueue.main.async {
             self.item = nil

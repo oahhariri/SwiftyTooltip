@@ -9,15 +9,15 @@ import SwiftUI
 
 struct ViewFrameAdapter: ViewModifier {
     
-    var viewFrame: ((_ frame: CGRect) -> Void)
+    var viewFrame: (@Sendable @TooltipTargetBackgroundActor (_ frame: CGRect) -> Void)
     let coordinateSpace: CoordinateSpace
     
     func body(content: Content) -> some View {
         //if #available(iOS 16.0, *) {
-         //   view(content: content)
-       // } else {
-            lagacyView(content: content)
-       // }
+        //   view(content: content)
+        // } else {
+        lagacyView(content: content)
+        // }
         
     }
     
@@ -28,7 +28,7 @@ struct ViewFrameAdapter: ViewModifier {
             .onGeometryChange(for: CGRect.self) { geo in
                 geo.frame(in: coordinateSpace)
             } action: { geo in
-                DispatchQueue.main.async {
+                Task { @TooltipTargetBackgroundActor in
                     viewFrame(geo)
                 }
             }
@@ -39,13 +39,14 @@ struct ViewFrameAdapter: ViewModifier {
             .background(GeometryReader { geo in
                 Color.clear
                     .onChange(of: geo.frame(in: coordinateSpace), perform: { newValue in
-                        DispatchQueue.main.async {
+                        Task { @TooltipTargetBackgroundActor in
                             viewFrame(newValue)
                         }
                     })
                     .onAppear {
-                        DispatchQueue.main.async {
-                            viewFrame(geo.frame(in: coordinateSpace))
+                        let frame = geo.frame(in: coordinateSpace)
+                        Task { @TooltipTargetBackgroundActor in
+                            viewFrame(frame)
                         }
                     }
             })
@@ -53,7 +54,7 @@ struct ViewFrameAdapter: ViewModifier {
 }
 
 extension View {
-    func getViewFrame(coordinateSpace: CoordinateSpace, _ viewFrame: @escaping ((_ frame: CGRect) -> Void)) -> some View {
+    func getViewFrame(coordinateSpace: CoordinateSpace, _ viewFrame: @escaping (@Sendable @TooltipTargetBackgroundActor (_ frame: CGRect) -> Void)) -> some View {
         modifier(ViewFrameAdapter(viewFrame: viewFrame,coordinateSpace: coordinateSpace))
     }
 }
