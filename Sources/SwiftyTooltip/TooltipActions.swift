@@ -33,6 +33,7 @@ struct TooltipActionEnvironment : Equatable, Hashable {
 
 extension EnvironmentValues {
     @Entry var tooltipAction: TooltipActionEnvironment?
+    @Entry var currentTooltipContext: String?
 }
 
 extension View {

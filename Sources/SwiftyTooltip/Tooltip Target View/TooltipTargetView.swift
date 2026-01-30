@@ -16,10 +16,19 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
     let context: Context
     let id: String
     @Environment(\.tooltipAction) var tooltipAction
+    @Environment(\.currentTooltipContext) var currentTooltipContext
     
     @ViewBuilder var content: () -> Content
     
     public var body: some View {
+        if let currentTooltipContext, currentTooltipContext == context.id {
+            mainView()
+        } else {
+            content()
+        }
+    }
+    
+    func mainView() -> some View {
         content()
             .getViewFrame(coordinateSpace: .named(tooltipCoordinateSpace)) { frame in
                 Task {@TooltipTargetBackgroundActor in
