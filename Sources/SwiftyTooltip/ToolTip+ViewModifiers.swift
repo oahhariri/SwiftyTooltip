@@ -17,11 +17,19 @@ struct TooltipEnvironmentModifier: ViewModifier {
         return "\(OverlayContainers.tooltipOverlayContiners)_\(context)"
     }
     
+    /// Name of the coordinate space this container declares. Scoped to the
+    /// context so stacking multiple containers doesn't collide on one shared
+    /// space name; falls back to the global name when no context is given.
+    private var coordinateSpaceName: String {
+        guard let context else { return tooltipCoordinateSpace }
+        return tooltipCoordinateSpace(for: context)
+    }
+
     func body(content: Content) -> some View {
         content
             .overlayContainer(containerName,
                               containerConfiguration: OverlayContainerConfig())
-            .coordinateSpace(name: tooltipCoordinateSpace)
+            .coordinateSpace(name: coordinateSpaceName)
     }
 }
 

@@ -30,7 +30,7 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
     
     func mainView() -> some View {
         content()
-            .getViewFrame(coordinateSpace: .named(tooltipCoordinateSpace)) { frame in
+            .getViewFrame(coordinateSpace: .named(tooltipCoordinateSpace(for: context.id))) { frame in
                 Task {@TooltipTargetBackgroundActor in
                     await tooltipAction?(.register(context.id, id: id, frame: frame))
                 }
