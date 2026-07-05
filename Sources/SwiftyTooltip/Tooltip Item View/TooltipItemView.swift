@@ -52,7 +52,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
             .overlayCover(contextId: viewModel.context.id,$viewModel.tooltipInfo) { tooltipInfo in
                 show(tooltipInfo: tooltipInfo)
             }
-            .onTooltipAction(handelActions)
+            .onTooltipAction(id: viewModel.context.id.hashValue,handelActions)
             .disabledScroll(isDisabled: viewModel.tooltipInfo != nil)
             .environment(\.currentTooltipContext, viewModel.context.id)
     }

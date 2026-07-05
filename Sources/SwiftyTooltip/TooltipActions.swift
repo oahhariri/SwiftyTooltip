@@ -16,7 +16,7 @@ struct TooltipActionEnvironment : Equatable, Hashable {
   
     typealias Action = ((_: TooltipActions) -> ())
     var action: Action
-    var id: Int = 0
+    let id: Int
     
     static func == (lhs: TooltipActionEnvironment, rhs: TooltipActionEnvironment) -> Bool {
         lhs.id == rhs.id
@@ -37,7 +37,7 @@ extension EnvironmentValues {
 }
 
 extension View {
-    func onTooltipAction(_ action: @escaping TooltipActionEnvironment.Action) -> some View {
-        environment(\.tooltipAction, TooltipActionEnvironment(action: action))
+    func onTooltipAction(id: Int,_ action: @escaping TooltipActionEnvironment.Action) -> some View {
+        environment(\.tooltipAction, TooltipActionEnvironment(action: action, id:id))
     }
 }
