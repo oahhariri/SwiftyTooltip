@@ -16,12 +16,12 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
     let context: Context
     let id: String
     @Environment(\.tooltipAction) var tooltipAction
-    @Environment(\.currentTooltipContext) var currentTooltipContext
-    
+    @Environment(\.currentTooltipContexts) var currentTooltipContexts
+
     @ViewBuilder var content: () -> Content
-    
+
     public var body: some View {
-        if let currentTooltipContext, currentTooltipContext == context.id {
+        if currentTooltipContexts.contains(context.id) {
             mainView()
         } else {
             content()

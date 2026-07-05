@@ -54,7 +54,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
             }
             .onTooltipAction(id: viewModel.context.id.hashValue,handelActions)
             .disabledScroll(isDisabled: viewModel.tooltipInfo != nil)
-            .environment(\.currentTooltipContext, viewModel.context.id)
+            .activateTooltipContext(viewModel.context.id)
     }
     
     @ViewBuilder func show(tooltipInfo: TooltipInfoModel<Item>?) -> some View {
