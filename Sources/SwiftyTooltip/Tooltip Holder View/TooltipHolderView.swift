@@ -7,35 +7,16 @@
 
 import SwiftUI
 
-/// Carries the overlay's own origin, measured in `tooltipCoordinateSpace`, up to
-/// `TooltipHolderView`. See `overlayOrigin` below for why it's needed.
-private struct TooltipOverlayOriginKey: PreferenceKey {
-    static var defaultValue: CGPoint = .zero
-    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) { value = nextValue() }
-}
-
 struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: View {
-    
+
     var tooltipInfo: TooltipInfoModel<Item>?
-    
+
     let content: (Item) -> TooltipContent
-    
+
     @Environment(\.layoutDirection) var layoutDirection
     @Environment(\.safeAreaInsets) private var safeAreaInsets
-    
-    @State private var tooltipSize: CGSize = .zero
 
-    /// The overlay's own top-left, measured in `tooltipCoordinateSpace` (the space
-    /// the target frame is measured in). It is the delta between the overlay's
-    /// local geometry (`geo`, which — because the overlay ignores safe area —
-    /// spans the window) and the coordinate space that `targetFrame` lives in.
-    ///
-    /// When `.tooltipContainer` sits at the window root these origins coincide, so
-    /// this is `.zero` and nothing changes. When the container sits on an inset /
-    /// pushed screen, the target frame is measured inset by the nav/safe-area while
-    /// the overlay draws window-relative; subtracting this origin re-aligns the two
-    /// spaces so the tooltip (and spotlight, and arrow) anchor under the target.
-    @State private var overlayOrigin: CGPoint = .zero
+    @State private var tooltipSize: CGSize = .zero
 
     // Animation
     @State private var isAnimating: Bool = false
@@ -64,34 +45,6 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
         }
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
-        // Measure the delta between the space the TARGET frame is registered in
-        // (`tooltipCoordinateSpace`, whose origin is the container view — inset by
-        // the nav/safe-area on a pushed screen) and the space this overlay actually
-        // RENDERS in (its `geo`, which — because the overlay ignores safe area —
-        // spans the window, i.e. coincides with `.global`).
-        //
-        // Measuring only in `.named` returned ~`.zero` (the overlay resolves the
-        // same nearest named space as the target, so they coincide there), which is
-        // why the earlier attempt didn't move anything. The real mismatch is
-        // named-vs-render: for a probe at the same point, `frame(in: .global)` and
-        // `frame(in: .named(...))` differ by exactly the inset. `overlayOrigin` is
-        // that delta (named − global); it is `.zero` at the window root (existing
-        // tooltips unchanged) and equals the nav/status inset on a pushed screen —
-        // the amount the sort tooltip was rendering shifted up by.
-        .background(
-            GeometryReader { proxy in
-                let named = proxy.frame(in: .named(tooltipCoordinateSpace))
-                let global = proxy.frame(in: .global)
-                Color.clear.preference(
-                    key: TooltipOverlayOriginKey.self,
-                    value: CGPoint(x: named.minX - global.minX,
-                                   y: named.minY - global.minY)
-                )
-            }
-        )
-        .onPreferenceChange(TooltipOverlayOriginKey.self) { newValue in
-            overlayOrigin = newValue
-        }
         .onChange(of: tooltipInfo) { _ in
             startAnimation()
         }
@@ -106,68 +59,19 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
 extension TooltipHolderView {
     
     @ViewBuilder func mainView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
-        // Convert the target frame from the space it was measured in
-        // (`tooltipCoordinateSpace`, whose origin is the container view) into the
-        // overlay's own local space (`geo`, which — because the overlay ignores
-        // safe area — spans the window). `overlayOrigin` is the delta between the
-        // two origins; subtracting it once here yields a frame already expressed in
-        // `geo`-local coordinates, so every downstream calculation (spotlight,
-        // tooltip position, arrow, emerge) runs UNCHANGED on a correctly-spaced
-        // input. When the container sits at the window root the two origins
-        // coincide, `overlayOrigin == .zero`, and `localTooltipInfo == tooltipInfo`
-        // — i.e. byte-identical to the previous behaviour for every existing,
-        // window-level tooltip. When the container sits on a pushed/inset screen,
-        // the conversion cancels the nav/safe-area inset so the tooltip anchors
-        // under the real target.
-        let localTooltipInfo = tooltipInfo.convertingTargetFrame(by: overlayOrigin)
-
+        // The target frame is now measured in `.global` (see TooltipTargetView),
+        // which is the same window-absolute space this overlay renders in, so no
+        // coordinate conversion is needed here — the frame is used as-is.
         ZStack(alignment: .top) {
 
-            // ───────── VISUAL DEBUG OVERLAY (temporary) ─────────
-            // RED   = raw target frame as registered (in whatever space it came in).
-            // BLUE  = the same rect drawn at geo, i.e. where `.position` would put it.
-            // Text  = key numbers so we can read the mismatch off the screen directly.
-            debugOverlay(tooltipInfo, geo: geo)
-            // ────────────────────────────────────────────────────
+            backgroundView(tooltipInfo)
 
-            backgroundView(localTooltipInfo)
-
-            tooltipView(localTooltipInfo, geo: geo)
+            tooltipView(tooltipInfo, geo: geo)
 
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
-    /// Temporary on-screen debugger — reads off the numbers visually, no console.
-    @ViewBuilder func debugOverlay(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
-        let raw = tooltipInfo.targetFrame
-        // Where the real target actually is on screen, measured live in geo-space.
-        ZStack(alignment: .topLeading) {
-            // RED outline = the RAW registered target frame, drawn at its own coords.
-            Rectangle()
-                .stroke(Color.red, lineWidth: 3)
-                .frame(width: raw.width, height: raw.height)
-                .position(x: raw.midX, y: raw.midY)
-
-            // GREEN dot = geo origin (0,0) marker, to see where this overlay's space starts.
-            Circle().fill(Color.green).frame(width: 14, height: 14).position(x: 0, y: 0)
-
-            // Text panel with the numbers.
-            VStack(alignment: .leading, spacing: 2) {
-                Text("geo.size \(Int(geo.size.width))×\(Int(geo.size.height))")
-                Text("geo.global \(Int(geo.frame(in: .global).minX)),\(Int(geo.frame(in: .global).minY))")
-                Text("RAW target x\(Int(raw.minX)) y\(Int(raw.minY)) \(Int(raw.width))×\(Int(raw.height))")
-                Text("overlayOrigin \(Int(overlayOrigin.x)),\(Int(overlayOrigin.y))")
-            }
-            .font(.system(size: 11, weight: .bold, design: .monospaced))
-            .foregroundColor(.white)
-            .padding(6)
-            .background(Color.black.opacity(0.8))
-            .position(x: 130, y: 120)
-        }
-        .allowsHitTesting(false)
-    }
-
     @ViewBuilder func backgroundView(_ tooltipInfo: TooltipInfoModel<Item>) -> some View {
         SpotlightBackgroundView(
             backgroundColor: backgroundColor,
@@ -435,25 +339,25 @@ extension TooltipHolderView {
     private func calculateTooltipPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> CGPoint {
         let item = tooltipInfo.item
         let targetFrame = tooltipInfo.targetFrame
-        
+
         guard tooltipSize.isValidSize() else { return .zero }
-        
+
         var xPos = targetFrame.midX
         var yPos = targetFrame.midY
-        
+
         let spacing = item.spacing
         var arrowHeight = tooltipInfo.item.arrowWidth / 2
             arrowHeight = arrowHeight / 2
-        
+
         switch rtlSide(item.side) {
         case .top:
-            
+
             yPos = targetFrame.minY - tooltipSize.height / 2 - spacing - arrowHeight
-            
+
         case .bottom:
-            
+
             yPos = targetFrame.maxY + tooltipSize.height / 2 + spacing + arrowHeight
-            
+
         case .trailing:
             
             xPos = targetFrame.minX - tooltipSize.width / 2 - spacing - arrowHeight

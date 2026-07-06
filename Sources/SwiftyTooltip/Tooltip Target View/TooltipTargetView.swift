@@ -46,7 +46,20 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
         let contextId = context.id
         let targetId = id
         return content()
-            .getViewFrame(coordinateSpace: .named(tooltipCoordinateSpace)) { frame in
+            // Measure the target in `.global` (window/scene-absolute), NOT in the
+            // container's named space. The tooltip overlay is injected by
+            // SwiftUIOverlayContainer as a window-spanning, safe-area-ignoring
+            // overlay, so it renders in global space (verified on device:
+            // geo.frame(in: .global) == (0,0), geo.size == full window). A target
+            // measured in the container's `.named` space is inset by the
+            // nav/safe-area when the container sits on a pushed screen, so its y
+            // came out `inset` too small and the tooltip rendered shifted up.
+            // Measuring in `.global` puts the target in the same space the overlay
+            // renders in, for every container level — window-root containers are
+            // unchanged (there `.named ≈ .global`) and pushed-screen containers are
+            // fixed. (X is likewise more correct: the RTL mirror uses the overlay's
+            // full window width, which matches global, not the inset named space.)
+            .getViewFrame(coordinateSpace: .global) { frame in
                 Task {@TooltipTargetBackgroundActor in
                     await tooltipAction(.register(contextId, id: targetId, frame: frame))
                 }
