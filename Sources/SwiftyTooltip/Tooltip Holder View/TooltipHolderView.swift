@@ -92,7 +92,7 @@ extension TooltipHolderView {
         let tooltipPosition = calculateTooltipPosition(tooltipInfo, geo: geo)
         let arrowPosition = calculateArrowPosition(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
 
-        let emerge = emergeTransform(tooltipInfo, tooltipPosition: tooltipPosition)
+        let emerge = emergeTransform(tooltipInfo, tooltipPosition: tooltipPosition, arrowPosition: arrowPosition)
 
         ZStack(alignment: .top) {
 
@@ -142,10 +142,11 @@ extension TooltipHolderView {
         }
     }
 
-    func emergeTransform(_ tooltipInfo: TooltipInfoModel<Item>, tooltipPosition: CGPoint) -> EmergeTransform {
+    func emergeTransform(_ tooltipInfo: TooltipInfoModel<Item>, tooltipPosition: CGPoint, arrowPosition: CGPoint) -> EmergeTransform {
         guard tooltipInfo.item.appearanceAnimation.includesEmerge else { return .identity }
         guard tooltipSize.isValidSize(), tooltipPosition != .zero else { return .identity }
 
+        let item = tooltipInfo.item
         let progress = max(0, min(1, appearProgress))
 
         // Start roughly the size of the target so the tooltip looks like it grows
@@ -156,9 +157,24 @@ extension TooltipHolderView {
         let startScale = min(max(rawStartScale.isFinite ? rawStartScale : 0.2, 0.05), 0.9)
         let scale = startScale + (1 - startScale) * progress
 
-        // Slide from the target center to the resting position as progress goes 0→1.
-        let dx = (targetFrame.midX - tooltipPosition.x) * (1 - progress)
-        let dy = (targetFrame.midY - tooltipPosition.y) * (1 - progress)
+        // Slide out from the target toward the resting position as progress 0→1.
+        //
+        // The start offset is the vector from the tooltip's resting center
+        // (`tooltipPosition`) to its arrow tip (`arrowPosition`) — the arrow sits on
+        // the tooltip's target-facing edge, so this vector points straight at the
+        // target. Crucially, BOTH points come from the existing position math and
+        // are already in SwiftUI's `.position` space (RTL-mirrored where needed), so
+        // this is correct in LTR and RTL without any manual axis flipping. Using raw
+        // `targetFrame.midX` here was the bug: it is in the un-mirrored capture
+        // space, so in RTL the origin landed on the wrong side (top-left).
+        //
+        // Extend the vector past the arrow so the collapsed bubble starts roughly at
+        // the target itself rather than just at the tooltip's own edge.
+        let toTarget = CGSize(width: arrowPosition.x - tooltipPosition.x,
+                              height: arrowPosition.y - tooltipPosition.y)
+        let start = CGSize(width: toTarget.width * 1.3, height: toTarget.height * 1.3)
+        let dx = start.width * (1 - progress)
+        let dy = start.height * (1 - progress)
 
         // Fade the content in quickly, and the arrow slightly later so it doesn't
         // float detached while the body is still collapsed onto the target.
@@ -166,20 +182,26 @@ extension TooltipHolderView {
         let arrowOpacity = max(0, min(1, (progress - 0.35) / 0.5))
 
         return EmergeTransform(scale: scale,
-                               anchor: emergeAnchor(for: tooltipInfo.item.side),
+                               anchor: emergeAnchor(toTarget: toTarget),
                                offset: CGSize(width: dx, height: dy),
                                opacity: opacity,
                                arrowOpacity: arrowOpacity)
     }
 
     /// The scale anchor that makes the tooltip appear to grow *out of* the target:
-    /// the edge nearest the target stays put while the rest expands.
-    private func emergeAnchor(for side: TooltipSide) -> UnitPoint {
-        switch rtlSide(side) {
-        case .bottom: return .top       // tooltip below target → grow downward
-        case .top:    return .bottom    // tooltip above target → grow upward
-        case .trailing: return .leading // tooltip left of target → grow leftward
-        case .leading:  return .trailing// tooltip right of target → grow rightward
+    /// the bubble edge nearest the target stays put while the rest expands.
+    ///
+    /// Derived geometrically from `toTarget` (the vector pointing at the target),
+    /// so it is automatically correct in LTR and RTL — no reliance on layout-
+    /// direction-sensitive `.leading`/`.trailing` semantics.
+    private func emergeAnchor(toTarget: CGSize) -> UnitPoint {
+        // Anchor at the bubble edge facing the target: if the target is above,
+        // anchor at the bubble's top; below → bottom; left → leading(geometric);
+        // right → trailing(geometric). Pick the dominant axis.
+        if abs(toTarget.height) >= abs(toTarget.width) {
+            return toTarget.height < 0 ? .top : .bottom
+        } else {
+            return toTarget.width < 0 ? .leading : .trailing
         }
     }
 }
