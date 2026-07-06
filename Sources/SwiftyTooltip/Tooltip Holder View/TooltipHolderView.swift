@@ -64,14 +64,28 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
         }
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
-        // Measure the overlay's own origin in the target-frame space, on the
-        // un-offset root, so the re-alignment offset applied inside `mainView`
-        // cannot feed back into this measurement. `.zero` at the window root.
+        // Measure the delta between the space the TARGET frame is registered in
+        // (`tooltipCoordinateSpace`, whose origin is the container view — inset by
+        // the nav/safe-area on a pushed screen) and the space this overlay actually
+        // RENDERS in (its `geo`, which — because the overlay ignores safe area —
+        // spans the window, i.e. coincides with `.global`).
+        //
+        // Measuring only in `.named` returned ~`.zero` (the overlay resolves the
+        // same nearest named space as the target, so they coincide there), which is
+        // why the earlier attempt didn't move anything. The real mismatch is
+        // named-vs-render: for a probe at the same point, `frame(in: .global)` and
+        // `frame(in: .named(...))` differ by exactly the inset. `overlayOrigin` is
+        // that delta (named − global); it is `.zero` at the window root (existing
+        // tooltips unchanged) and equals the nav/status inset on a pushed screen —
+        // the amount the sort tooltip was rendering shifted up by.
         .background(
             GeometryReader { proxy in
+                let named = proxy.frame(in: .named(tooltipCoordinateSpace))
+                let global = proxy.frame(in: .global)
                 Color.clear.preference(
                     key: TooltipOverlayOriginKey.self,
-                    value: proxy.frame(in: .named(tooltipCoordinateSpace)).origin
+                    value: CGPoint(x: named.minX - global.minX,
+                                   y: named.minY - global.minY)
                 )
             }
         )
