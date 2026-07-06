@@ -52,9 +52,8 @@ internal struct TooltipItemView<Context: TooltipContextType,
             .overlayCover(contextId: viewModel.context.id,$viewModel.tooltipInfo) { tooltipInfo in
                 show(tooltipInfo: tooltipInfo)
             }
-            .onTooltipAction(id: viewModel.context.id.hashValue,handelActions)
+            .onTooltipAction(context: viewModel.context.id, id: viewModel.context.id.hashValue, handelActions)
             .disabledScroll(isDisabled: viewModel.tooltipInfo != nil)
-            .activateTooltipContext(viewModel.context.id)
     }
     
     @ViewBuilder func show(tooltipInfo: TooltipInfoModel<Item>?) -> some View {

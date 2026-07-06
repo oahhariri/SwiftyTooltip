@@ -10,7 +10,7 @@ struct TooltipInfoModel<Item: TooltipItemConfigType>: Equatable & Identifiable {
     var id: String {
         item.id
     }
-    
+
     var item: Item
     var targetFrame: CGRect
 }
