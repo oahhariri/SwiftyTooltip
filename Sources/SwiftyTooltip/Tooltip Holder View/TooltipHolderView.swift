@@ -123,6 +123,13 @@ extension TooltipHolderView {
 
         ZStack(alignment: .top) {
 
+            // ───────── VISUAL DEBUG OVERLAY (temporary) ─────────
+            // RED   = raw target frame as registered (in whatever space it came in).
+            // BLUE  = the same rect drawn at geo, i.e. where `.position` would put it.
+            // Text  = key numbers so we can read the mismatch off the screen directly.
+            debugOverlay(tooltipInfo, geo: geo)
+            // ────────────────────────────────────────────────────
+
             backgroundView(localTooltipInfo)
 
             tooltipView(localTooltipInfo, geo: geo)
@@ -131,6 +138,36 @@ extension TooltipHolderView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
+    /// Temporary on-screen debugger — reads off the numbers visually, no console.
+    @ViewBuilder func debugOverlay(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
+        let raw = tooltipInfo.targetFrame
+        // Where the real target actually is on screen, measured live in geo-space.
+        ZStack(alignment: .topLeading) {
+            // RED outline = the RAW registered target frame, drawn at its own coords.
+            Rectangle()
+                .stroke(Color.red, lineWidth: 3)
+                .frame(width: raw.width, height: raw.height)
+                .position(x: raw.midX, y: raw.midY)
+
+            // GREEN dot = geo origin (0,0) marker, to see where this overlay's space starts.
+            Circle().fill(Color.green).frame(width: 14, height: 14).position(x: 0, y: 0)
+
+            // Text panel with the numbers.
+            VStack(alignment: .leading, spacing: 2) {
+                Text("geo.size \(Int(geo.size.width))×\(Int(geo.size.height))")
+                Text("geo.global \(Int(geo.frame(in: .global).minX)),\(Int(geo.frame(in: .global).minY))")
+                Text("RAW target x\(Int(raw.minX)) y\(Int(raw.minY)) \(Int(raw.width))×\(Int(raw.height))")
+                Text("overlayOrigin \(Int(overlayOrigin.x)),\(Int(overlayOrigin.y))")
+            }
+            .font(.system(size: 11, weight: .bold, design: .monospaced))
+            .foregroundColor(.white)
+            .padding(6)
+            .background(Color.black.opacity(0.8))
+            .position(x: 130, y: 120)
+        }
+        .allowsHitTesting(false)
+    }
+
     @ViewBuilder func backgroundView(_ tooltipInfo: TooltipInfoModel<Item>) -> some View {
         SpotlightBackgroundView(
             backgroundColor: backgroundColor,
