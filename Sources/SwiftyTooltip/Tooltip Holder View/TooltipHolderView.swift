@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// Carries the overlay's own origin, measured in `tooltipCoordinateSpace`, up to
+/// `TooltipHolderView`. See `overlayOrigin` below for why it's needed.
+private struct TooltipOverlayOriginKey: PreferenceKey {
+    static var defaultValue: CGPoint = .zero
+    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) { value = nextValue() }
+}
+
 struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: View {
     
     var tooltipInfo: TooltipInfoModel<Item>?
@@ -17,7 +24,19 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
     @Environment(\.safeAreaInsets) private var safeAreaInsets
     
     @State private var tooltipSize: CGSize = .zero
-    
+
+    /// The overlay's own top-left, measured in `tooltipCoordinateSpace` (the space
+    /// the target frame is measured in). It is the delta between the overlay's
+    /// local geometry (`geo`, which — because the overlay ignores safe area —
+    /// spans the window) and the coordinate space that `targetFrame` lives in.
+    ///
+    /// When `.tooltipContainer` sits at the window root these origins coincide, so
+    /// this is `.zero` and nothing changes. When the container sits on an inset /
+    /// pushed screen, the target frame is measured inset by the nav/safe-area while
+    /// the overlay draws window-relative; subtracting this origin re-aligns the two
+    /// spaces so the tooltip (and spotlight, and arrow) anchor under the target.
+    @State private var overlayOrigin: CGPoint = .zero
+
     // Animation
     @State private var isAnimating: Bool = false
     @State private var jumpOffset: CGFloat = 0
@@ -45,6 +64,20 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
         }
         .ignoresSafeArea(.all)
         .edgesIgnoringSafeArea(.all)
+        // Measure the overlay's own origin in the target-frame space, on the
+        // un-offset root, so the re-alignment offset applied inside `mainView`
+        // cannot feed back into this measurement. `.zero` at the window root.
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: TooltipOverlayOriginKey.self,
+                    value: proxy.frame(in: .named(tooltipCoordinateSpace)).origin
+                )
+            }
+        )
+        .onPreferenceChange(TooltipOverlayOriginKey.self) { newValue in
+            overlayOrigin = newValue
+        }
         .onChange(of: tooltipInfo) { _ in
             startAnimation()
         }
@@ -59,12 +92,27 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
 extension TooltipHolderView {
     
     @ViewBuilder func mainView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
+        // Convert the target frame from the space it was measured in
+        // (`tooltipCoordinateSpace`, whose origin is the container view) into the
+        // overlay's own local space (`geo`, which — because the overlay ignores
+        // safe area — spans the window). `overlayOrigin` is the delta between the
+        // two origins; subtracting it once here yields a frame already expressed in
+        // `geo`-local coordinates, so every downstream calculation (spotlight,
+        // tooltip position, arrow, emerge) runs UNCHANGED on a correctly-spaced
+        // input. When the container sits at the window root the two origins
+        // coincide, `overlayOrigin == .zero`, and `localTooltipInfo == tooltipInfo`
+        // — i.e. byte-identical to the previous behaviour for every existing,
+        // window-level tooltip. When the container sits on a pushed/inset screen,
+        // the conversion cancels the nav/safe-area inset so the tooltip anchors
+        // under the real target.
+        let localTooltipInfo = tooltipInfo.convertingTargetFrame(by: overlayOrigin)
+
         ZStack(alignment: .top) {
-            
-            backgroundView(tooltipInfo)
-            
-            tooltipView(tooltipInfo, geo: geo)
-            
+
+            backgroundView(localTooltipInfo)
+
+            tooltipView(localTooltipInfo, geo: geo)
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
