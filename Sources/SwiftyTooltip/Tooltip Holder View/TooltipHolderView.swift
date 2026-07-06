@@ -92,7 +92,7 @@ extension TooltipHolderView {
         let tooltipPosition = calculateTooltipPosition(tooltipInfo, geo: geo)
         let arrowPosition = calculateArrowPosition(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
 
-        let emerge = emergeTransform(tooltipInfo, tooltipPosition: tooltipPosition, arrowPosition: arrowPosition)
+        let emerge = emergeTransform(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
 
         ZStack(alignment: .top) {
 
@@ -100,15 +100,15 @@ extension TooltipHolderView {
                 .getViewSize { continerSize in
                     self.tooltipSize = continerSize
                 }
-                // Emerge-from-target: scale the bubble up from the edge nearest the
-                // target and slide it out from the target center to its resting
-                // position. These are applied to the bubble itself (not the
-                // full-screen ZStack) so `anchor` refers to the bubble's own edge.
-                // Identity values when the item uses the plain jump animation.
-                .scaleEffect(emerge.scale, anchor: emerge.anchor)
+                // Emerge-from-target: the bubble's CENTER is interpolated from the
+                // target's center to the resting position, and it scales up from a
+                // small size — anchored at `.center` so scaling never drags it into
+                // a corner. `emerge.center` is already in this `.position` space, so
+                // it lands on the target in both LTR and RTL.
+                .scaleEffect(emerge.scale, anchor: .center)
                 .opacity(emerge.opacity)
-                .position(x: tooltipPosition.x + emerge.offset.width,
-                          y: tooltipPosition.y + jumpOffset + emerge.offset.height)
+                .position(x: emerge.center.x,
+                          y: emerge.center.y + jumpOffset)
 
             ArrowShape(cornerRadius: 5)
                 .fill(tooltipInfo.item.backgroundColor)
@@ -126,83 +126,76 @@ extension TooltipHolderView {
 //MARK: - Emerge-from-target transform
 extension TooltipHolderView {
 
-    /// The resolved scale/anchor/offset/opacity for the emerge-from-target
+    /// The resolved bubble center / scale / opacity for the emerge-from-target
     /// animation at the current `appearProgress`. For items that don't use the
-    /// emerge style this returns identity values, so the tooltip renders exactly
-    /// as before (only the jump animation applies).
+    /// emerge style this returns identity values (center == resting position,
+    /// scale 1, fully opaque) so the tooltip renders exactly as before.
     struct EmergeTransform {
+        var center: CGPoint
         var scale: CGFloat
-        var anchor: UnitPoint
-        var offset: CGSize
         var opacity: CGFloat
         var arrowOpacity: CGFloat
-
-        static var identity: EmergeTransform {
-            EmergeTransform(scale: 1, anchor: .center, offset: .zero, opacity: 1, arrowOpacity: 1)
-        }
     }
 
-    func emergeTransform(_ tooltipInfo: TooltipInfoModel<Item>, tooltipPosition: CGPoint, arrowPosition: CGPoint) -> EmergeTransform {
-        guard tooltipInfo.item.appearanceAnimation.includesEmerge else { return .identity }
-        guard tooltipSize.isValidSize(), tooltipPosition != .zero else { return .identity }
+    func emergeTransform(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, tooltipPosition: CGPoint) -> EmergeTransform {
+        // Identity for the jump style, or before the bubble has been measured: the
+        // center is simply the resting position and everything is full-size/opaque.
+        let identity = EmergeTransform(center: tooltipPosition, scale: 1, opacity: 1, arrowOpacity: 1)
+        guard tooltipInfo.item.appearanceAnimation.includesEmerge else { return identity }
+        guard tooltipSize.isValidSize(), tooltipPosition != .zero else { return identity }
 
-        let item = tooltipInfo.item
         let progress = max(0, min(1, appearProgress))
-
-        // Start roughly the size of the target so the tooltip looks like it grows
-        // out of it; clamp so a very small/large target still animates sensibly.
         let targetFrame = tooltipInfo.targetFrame
+
+        // Target center expressed in the SAME `.position` space as `tooltipPosition`.
+        // The existing position math leaves x un-mirrored for top/bottom sides but
+        // mirrors it (geo.width - x) for leading/trailing sides in RTL; we mirror
+        // the target center the same way so it coincides with the on-screen target
+        // in both LTR and RTL. (Using the raw, un-mirrored `targetFrame.midX`
+        // directly was the bug that made the bubble emerge from a screen corner.)
+        let targetCenter = targetCenterInPositionSpace(tooltipInfo, geo: geo)
+
+        // Interpolate the bubble center from the target (progress 0) to the resting
+        // position (progress 1). At progress 0 the small bubble sits on the target.
+        let cx = targetCenter.x + (tooltipPosition.x - targetCenter.x) * progress
+        let cy = targetCenter.y + (tooltipPosition.y - targetCenter.y) * progress
+
+        // Start roughly the target's size so it looks like it grows out of it.
         let rawStartScale = min(targetFrame.height / tooltipSize.height,
                                 targetFrame.width / tooltipSize.width)
         let startScale = min(max(rawStartScale.isFinite ? rawStartScale : 0.2, 0.05), 0.9)
         let scale = startScale + (1 - startScale) * progress
-
-        // Slide out from the target toward the resting position as progress 0→1.
-        //
-        // The start offset is the vector from the tooltip's resting center
-        // (`tooltipPosition`) to its arrow tip (`arrowPosition`) — the arrow sits on
-        // the tooltip's target-facing edge, so this vector points straight at the
-        // target. Crucially, BOTH points come from the existing position math and
-        // are already in SwiftUI's `.position` space (RTL-mirrored where needed), so
-        // this is correct in LTR and RTL without any manual axis flipping. Using raw
-        // `targetFrame.midX` here was the bug: it is in the un-mirrored capture
-        // space, so in RTL the origin landed on the wrong side (top-left).
-        //
-        // Extend the vector past the arrow so the collapsed bubble starts roughly at
-        // the target itself rather than just at the tooltip's own edge.
-        let toTarget = CGSize(width: arrowPosition.x - tooltipPosition.x,
-                              height: arrowPosition.y - tooltipPosition.y)
-        let start = CGSize(width: toTarget.width * 1.3, height: toTarget.height * 1.3)
-        let dx = start.width * (1 - progress)
-        let dy = start.height * (1 - progress)
 
         // Fade the content in quickly, and the arrow slightly later so it doesn't
         // float detached while the body is still collapsed onto the target.
         let opacity = min(1, progress * 2.2)
         let arrowOpacity = max(0, min(1, (progress - 0.35) / 0.5))
 
-        return EmergeTransform(scale: scale,
-                               anchor: emergeAnchor(toTarget: toTarget),
-                               offset: CGSize(width: dx, height: dy),
+        return EmergeTransform(center: CGPoint(x: cx, y: cy),
+                               scale: scale,
                                opacity: opacity,
                                arrowOpacity: arrowOpacity)
     }
 
-    /// The scale anchor that makes the tooltip appear to grow *out of* the target:
-    /// the bubble edge nearest the target stays put while the rest expands.
-    ///
-    /// Derived geometrically from `toTarget` (the vector pointing at the target),
-    /// so it is automatically correct in LTR and RTL — no reliance on layout-
-    /// direction-sensitive `.leading`/`.trailing` semantics.
-    private func emergeAnchor(toTarget: CGSize) -> UnitPoint {
-        // Anchor at the bubble edge facing the target: if the target is above,
-        // anchor at the bubble's top; below → bottom; left → leading(geometric);
-        // right → trailing(geometric). Pick the dominant axis.
-        if abs(toTarget.height) >= abs(toTarget.width) {
-            return toTarget.height < 0 ? .top : .bottom
-        } else {
-            return toTarget.width < 0 ? .leading : .trailing
+    /// The target's center point, mapped into the same coordinate space that
+    /// `.position` uses to place the tooltip — mirroring x in RTL exactly the way
+    /// `calculateTooltipPosition` does, so the emerge origin coincides with the
+    /// real on-screen target in both layout directions.
+    private func targetCenterInPositionSpace(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> CGPoint {
+        let targetFrame = tooltipInfo.targetFrame
+        let isRTL = layoutDirection == .rightToLeft
+
+        let x: CGFloat
+        switch rtlSide(tooltipInfo.item.side) {
+        case .top, .bottom:
+            // Vertical sides: existing code uses raw midX for `.position` directly.
+            x = targetFrame.midX
+        case .leading, .trailing:
+            // Horizontal sides: existing code mirrors x in RTL, so mirror the target
+            // center the same way.
+            x = isRTL ? geo.size.width - targetFrame.midX : targetFrame.midX
         }
+        return CGPoint(x: x, y: targetFrame.midY)
     }
 }
 
