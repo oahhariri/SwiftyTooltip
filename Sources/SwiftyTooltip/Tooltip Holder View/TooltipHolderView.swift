@@ -178,23 +178,18 @@ extension TooltipHolderView {
     }
 
     /// The target's center point, mapped into the same coordinate space that
-    /// `.position` uses to place the tooltip — mirroring x in RTL exactly the way
-    /// `calculateTooltipPosition` does, so the emerge origin coincides with the
-    /// real on-screen target in both layout directions.
+    /// `.position` uses to place the tooltip.
+    ///
+    /// Ground truth: `calculateArrowPosition` positions the arrow at the target's
+    /// x with `layoutDirection == .rightToLeft ? geo.width - targetFrame.midX
+    /// : targetFrame.midX` for *every* side, and the arrow renders correctly in
+    /// both directions. So the target-center x in `.position` space is that same
+    /// mirrored value — for all sides, not just the horizontal ones. (Mirroring
+    /// only top/bottom sides in RTL, or leaving x raw, was the RTL x bug.)
     private func targetCenterInPositionSpace(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> CGPoint {
         let targetFrame = tooltipInfo.targetFrame
-        let isRTL = layoutDirection == .rightToLeft
-
-        let x: CGFloat
-        switch rtlSide(tooltipInfo.item.side) {
-        case .top, .bottom:
-            // Vertical sides: existing code uses raw midX for `.position` directly.
-            x = targetFrame.midX
-        case .leading, .trailing:
-            // Horizontal sides: existing code mirrors x in RTL, so mirror the target
-            // center the same way.
-            x = isRTL ? geo.size.width - targetFrame.midX : targetFrame.midX
-        }
+        let x = layoutDirection == .rightToLeft ? geo.size.width - targetFrame.midX
+                                                 : targetFrame.midX
         return CGPoint(x: x, y: targetFrame.midY)
     }
 }
