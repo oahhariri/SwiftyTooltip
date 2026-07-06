@@ -21,6 +21,9 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
     // Animation
     @State private var isAnimating: Bool = false
     @State private var jumpOffset: CGFloat = 0
+    /// Progress of the "emerge from target" animation: 0 = collapsed onto the
+    /// target, 1 = resting at full size/position.
+    @State private var appearProgress: CGFloat = 0
     
     var backgroundColor: Color = Color.gray.opacity(0.50)
     var dismissToolTip:(()->())?
@@ -85,37 +88,140 @@ extension TooltipHolderView {
     }
     
     @ViewBuilder func tooltipView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
-        
+
         let tooltipPosition = calculateTooltipPosition(tooltipInfo, geo: geo)
         let arrowPosition = calculateArrowPosition(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
-        
+
+        let emerge = emergeTransform(tooltipInfo, tooltipPosition: tooltipPosition)
+
         ZStack(alignment: .top) {
-            
+
             self.content(tooltipInfo.item)
                 .getViewSize { continerSize in
                     self.tooltipSize = continerSize
                 }
-                .position(x: tooltipPosition.x, y: tooltipPosition.y + jumpOffset)
-            
+                // Emerge-from-target: scale the bubble up from the edge nearest the
+                // target and slide it out from the target center to its resting
+                // position. These are applied to the bubble itself (not the
+                // full-screen ZStack) so `anchor` refers to the bubble's own edge.
+                // Identity values when the item uses the plain jump animation.
+                .scaleEffect(emerge.scale, anchor: emerge.anchor)
+                .opacity(emerge.opacity)
+                .position(x: tooltipPosition.x + emerge.offset.width,
+                          y: tooltipPosition.y + jumpOffset + emerge.offset.height)
+
             ArrowShape(cornerRadius: 5)
                 .fill(tooltipInfo.item.backgroundColor)
                 .frame(width: tooltipInfo.item.arrowWidth, height: tooltipInfo.item.arrowWidth / 2)
                 .rotationEffect(rotation(for: tooltipInfo.item.side))
                 .position(x: arrowPosition.x, y: arrowPosition.y + jumpOffset)
-            
+                .opacity(emerge.arrowOpacity)
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .opacity(tooltipSize.isValidSize() && tooltipPosition != .zero ? 1.0 : 0.0)
     }
 }
 
+//MARK: - Emerge-from-target transform
+extension TooltipHolderView {
+
+    /// The resolved scale/anchor/offset/opacity for the emerge-from-target
+    /// animation at the current `appearProgress`. For items that don't use the
+    /// emerge style this returns identity values, so the tooltip renders exactly
+    /// as before (only the jump animation applies).
+    struct EmergeTransform {
+        var scale: CGFloat
+        var anchor: UnitPoint
+        var offset: CGSize
+        var opacity: CGFloat
+        var arrowOpacity: CGFloat
+
+        static var identity: EmergeTransform {
+            EmergeTransform(scale: 1, anchor: .center, offset: .zero, opacity: 1, arrowOpacity: 1)
+        }
+    }
+
+    func emergeTransform(_ tooltipInfo: TooltipInfoModel<Item>, tooltipPosition: CGPoint) -> EmergeTransform {
+        guard tooltipInfo.item.appearanceAnimation.includesEmerge else { return .identity }
+        guard tooltipSize.isValidSize(), tooltipPosition != .zero else { return .identity }
+
+        let progress = max(0, min(1, appearProgress))
+
+        // Start roughly the size of the target so the tooltip looks like it grows
+        // out of it; clamp so a very small/large target still animates sensibly.
+        let targetFrame = tooltipInfo.targetFrame
+        let rawStartScale = min(targetFrame.height / tooltipSize.height,
+                                targetFrame.width / tooltipSize.width)
+        let startScale = min(max(rawStartScale.isFinite ? rawStartScale : 0.2, 0.05), 0.9)
+        let scale = startScale + (1 - startScale) * progress
+
+        // Slide from the target center to the resting position as progress goes 0→1.
+        let dx = (targetFrame.midX - tooltipPosition.x) * (1 - progress)
+        let dy = (targetFrame.midY - tooltipPosition.y) * (1 - progress)
+
+        // Fade the content in quickly, and the arrow slightly later so it doesn't
+        // float detached while the body is still collapsed onto the target.
+        let opacity = min(1, progress * 2.2)
+        let arrowOpacity = max(0, min(1, (progress - 0.35) / 0.5))
+
+        return EmergeTransform(scale: scale,
+                               anchor: emergeAnchor(for: tooltipInfo.item.side),
+                               offset: CGSize(width: dx, height: dy),
+                               opacity: opacity,
+                               arrowOpacity: arrowOpacity)
+    }
+
+    /// The scale anchor that makes the tooltip appear to grow *out of* the target:
+    /// the edge nearest the target stays put while the rest expands.
+    private func emergeAnchor(for side: TooltipSide) -> UnitPoint {
+        switch rtlSide(side) {
+        case .bottom: return .top       // tooltip below target → grow downward
+        case .top:    return .bottom    // tooltip above target → grow upward
+        case .trailing: return .leading // tooltip left of target → grow leftward
+        case .leading:  return .trailing// tooltip right of target → grow rightward
+        }
+    }
+}
+
 //MARK: - Animations
 extension TooltipHolderView {
-    
+
     private func startAnimation() {
         Task {@MainActor in
+            await triggerAppearanceAnimation()
+        }
+    }
+
+    private func triggerAppearanceAnimation() async {
+        let style = tooltipInfo?.item.appearanceAnimation ?? .jump
+
+        if style.includesEmerge {
+            await triggerEmergeAnimation()
+        } else {
+            // No emerge → the tooltip is shown at full size immediately.
+            appearProgress = 1
+        }
+
+        if style.includesJump {
             await triggerJumpAnimation()
         }
+    }
+
+    private func triggerEmergeAnimation() async {
+        guard !isAnimating else { return }
+        isAnimating = true
+
+        // Reset to collapsed-on-target, then spring out to full size/position.
+        appearProgress = 0
+        // Let layout settle (tooltipSize measured) before springing out.
+        try? await Task.sleep(seconds: 0.02)
+        withAnimation(.interpolatingSpring(stiffness: 260, damping: 22)) {
+            appearProgress = 1
+        }
+        try? await Task.sleep(seconds: 0.35)
+
+        isAnimating = false
     }
     
     private func triggerJumpAnimation(jumpHeight: CGFloat = -8) async {
