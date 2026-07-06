@@ -92,8 +92,11 @@ extension TooltipHolderView {
     
     @ViewBuilder func tooltipView(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> some View {
 
-        let tooltipPosition = calculateTooltipPosition(tooltipInfo, geo: geo)
-        let arrowPosition = calculateArrowPosition(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
+        // Resolve the side ONCE and thread it through position, arrow, and arrow
+        // rotation so all three stay consistent after an off-screen flip.
+        let side = effectiveSide(tooltipInfo, geo: geo)
+        let tooltipPosition = calculateTooltipPosition(tooltipInfo, geo: geo, side: side)
+        let arrowPosition = calculateArrowPosition(tooltipInfo, geo: geo, side: side, tooltipPosition: tooltipPosition)
 
         let emerge = emergeTransform(tooltipInfo, geo: geo, tooltipPosition: tooltipPosition)
 
@@ -116,7 +119,7 @@ extension TooltipHolderView {
             ArrowShape(cornerRadius: 5)
                 .fill(tooltipInfo.item.backgroundColor)
                 .frame(width: tooltipInfo.item.arrowWidth, height: tooltipInfo.item.arrowWidth / 2)
-                .rotationEffect(rotation(for: tooltipInfo.item.side))
+                .rotationEffect(rotation(for: side))
                 .position(x: arrowPosition.x, y: arrowPosition.y + jumpOffset)
                 .opacity(emerge.arrowOpacity)
 
@@ -298,21 +301,21 @@ extension TooltipHolderView {
 
 //MARK: - Arrow Posstion
 extension TooltipHolderView {
-    private func calculateArrowPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, tooltipPosition: CGPoint) -> CGPoint {
+    private func calculateArrowPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, side: TooltipSide, tooltipPosition: CGPoint) -> CGPoint {
         let item = tooltipInfo.item
         let targetFrame = tooltipInfo.targetFrame
-        
+
         let arrowMargin: CGFloat = item.arrowWidth / 2
-        
+
         let tooltipLeft = tooltipPosition.x - tooltipSize.width/2
         let tooltipRight = tooltipPosition.x + tooltipSize.width/2
         let tooltipTop = tooltipPosition.y - tooltipSize.height/2
         let tooltipBottom = tooltipPosition.y + tooltipSize.height/2
-        
+
         var arrowX =  layoutDirection == .rightToLeft ? geo.size.width - targetFrame.midX : targetFrame.midX
         var arrowY = targetFrame.midY
-        
-        let fixedSide = rtlSide(item.side)
+
+        let fixedSide = rtlSide(side)
         switch fixedSide {
         case .top, .bottom:
             arrowY = fixedSide == .bottom ? tooltipTop : tooltipBottom
@@ -336,11 +339,23 @@ extension TooltipHolderView {
 
 //MARK: - ToolTip Posstion
 extension TooltipHolderView {
-    private func calculateTooltipPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> CGPoint {
+    /// Computes the tooltip center for a specific `side` (already RTL-resolved via
+    /// `rtlSide` inside). The `side` is resolved once by `effectiveSide` in
+    /// `tooltipView` and threaded here + into the arrow so they stay consistent
+    /// after an off-screen flip.
+    private func calculateTooltipPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, side: TooltipSide) -> CGPoint {
+        guard tooltipSize.isValidSize() else { return .zero }
+        let raw = rawTooltipPosition(tooltipInfo, geo: geo, side: side)
+        return fixTooltipPostions(tooltipInfo, geo: geo, side: side, xPos: raw.x, yPos: raw.y)
+    }
+
+    /// The tooltip center for `side` BEFORE the on-screen edge clamp
+    /// (`fixTooltipPostions`). Shared by the real placement and by the off-screen
+    /// fit check so both use IDENTICAL RTL handling — the fit check can never
+    /// disagree with where the tooltip actually renders.
+    private func rawTooltipPosition(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, side: TooltipSide) -> CGPoint {
         let item = tooltipInfo.item
         let targetFrame = tooltipInfo.targetFrame
-
-        guard tooltipSize.isValidSize() else { return .zero }
 
         var xPos = targetFrame.midX
         var yPos = targetFrame.midY
@@ -349,7 +364,7 @@ extension TooltipHolderView {
         var arrowHeight = tooltipInfo.item.arrowWidth / 2
             arrowHeight = arrowHeight / 2
 
-        switch rtlSide(item.side) {
+        switch rtlSide(side) {
         case .top:
 
             yPos = targetFrame.minY - tooltipSize.height / 2 - spacing - arrowHeight
@@ -359,45 +374,43 @@ extension TooltipHolderView {
             yPos = targetFrame.maxY + tooltipSize.height / 2 + spacing + arrowHeight
 
         case .trailing:
-            
+
             xPos = targetFrame.minX - tooltipSize.width / 2 - spacing - arrowHeight
             xPos =  layoutDirection == .rightToLeft ? geo.size.width - xPos : xPos
-            
+
         case .leading:
             xPos = targetFrame.maxX + tooltipSize.width / 2 + spacing + arrowHeight
             xPos =  layoutDirection == .rightToLeft ? geo.size.width - xPos : xPos
-            
+
         }
-        
-        return fixTooltipPostions(tooltipInfo, geo: geo,xPos: xPos, yPos: yPos)
+
+        return CGPoint(x: xPos, y: yPos)
     }
     
-    private func fixTooltipPostions(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, xPos: CGFloat, yPos: CGFloat) -> CGPoint {
-        let item = tooltipInfo.item
-        
+    private func fixTooltipPostions(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, side: TooltipSide, xPos: CGFloat, yPos: CGFloat) -> CGPoint {
         let edgePadding: CGFloat = 10
         var xPos = xPos
         var yPos = yPos
-        
+
         let leftEdge = xPos - tooltipSize.width/2
         let rightEdge = xPos + tooltipSize.width/2
         let topEdge = yPos - tooltipSize.height/2
         let bottomEdge = yPos + tooltipSize.height/2
-        
-        
-        switch rtlSide(item.side) {
+
+
+        switch rtlSide(side) {
         case .top, .bottom:
             let isRTL = layoutDirection == .rightToLeft
-            
+
             let shouldShiftLeft = (isRTL && leftEdge < edgePadding) || (!isRTL && rightEdge > geo.size.width)
             let shouldShiftRight = (isRTL && rightEdge > geo.size.width) || (!isRTL && leftEdge < edgePadding)
-            
+
             if shouldShiftLeft {
                 xPos = geo.size.width - (edgePadding + (tooltipSize.width / 2))
             } else if shouldShiftRight {
                 xPos = edgePadding + (tooltipSize.width / 2)
             }
-            
+
         case .trailing, .leading:
             if topEdge < safeAreaInsets.top {
                 yPos = edgePadding + tooltipSize.height/2 + safeAreaInsets.top
@@ -405,10 +418,83 @@ extension TooltipHolderView {
                 yPos = geo.size.height - edgePadding - tooltipSize.height/2 - safeAreaInsets.bottom
             }
         }
-        
+
         return CGPoint(x: xPos, y: yPos)
     }
-    
+
+}
+
+//MARK: - Off-screen side resolution
+extension TooltipHolderView {
+
+    /// Chooses the side the tooltip is actually drawn on so it stays on screen.
+    ///
+    /// Priority, per the requested `item.side`:
+    ///   1. the requested side,
+    ///   2. its opposite on the same axis (bottom↔top, leading↔trailing),
+    ///   3. the two sides on the perpendicular axis.
+    /// The first candidate whose full tooltip rect fits within the safe-area-inset
+    /// bounds wins. If none fit, the requested side is kept (falls back to the
+    /// existing edge-clamp behaviour), so this never makes a previously-shown
+    /// tooltip disappear — it only improves off-screen cases.
+    ///
+    /// `item.side` is the *logical* side; all candidates below are logical too and
+    /// get RTL-resolved downstream, so the flip is correct in LTR and RTL.
+    func effectiveSide(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy) -> TooltipSide {
+        let requested = tooltipInfo.item.side
+        guard tooltipSize.isValidSize() else { return requested }
+
+        for candidate in candidateSides(for: requested) {
+            if tooltipFits(tooltipInfo, geo: geo, side: candidate) {
+                return candidate
+            }
+        }
+        return requested
+    }
+
+    /// Candidate sides in priority order: requested → opposite → perpendicular pair.
+    private func candidateSides(for side: TooltipSide) -> [TooltipSide] {
+        switch side {
+        case .top:      return [.top, .bottom, .leading, .trailing]
+        case .bottom:   return [.bottom, .top, .leading, .trailing]
+        case .leading:  return [.leading, .trailing, .top, .bottom]
+        case .trailing: return [.trailing, .leading, .top, .bottom]
+        }
+    }
+
+    /// True if the tooltip, placed on `side`, fits within the visible bounds on
+    /// the axis that `side` controls — i.e. a `.bottom` tooltip must not run past
+    /// the bottom safe-area edge, a `.top` past the top, a horizontal side past the
+    /// left/right window edge, etc.
+    ///
+    /// It uses `rawTooltipPosition` — the SAME function the real placement uses —
+    /// so the fit check inherits the exact RTL handling of the actual render (for
+    /// horizontal sides the x is computed un-mirrored then mirrored by geo width;
+    /// re-deriving that by hand here is what would go wrong in RTL). We then test
+    /// the resulting bubble rect's edge on the side's own axis. The perpendicular
+    /// axis is left to the existing clamp in `fixTooltipPostions`.
+    private func tooltipFits(_ tooltipInfo: TooltipInfoModel<Item>, geo: GeometryProxy, side: TooltipSide) -> Bool {
+        let center = rawTooltipPosition(tooltipInfo, geo: geo, side: side)
+
+        let top = center.y - tooltipSize.height / 2
+        let bottom = center.y + tooltipSize.height / 2
+        let left = center.x - tooltipSize.width / 2
+        let right = center.x + tooltipSize.width / 2
+
+        // `rtlSide(side)` is the *visual* side after RTL resolution. The bubble
+        // extends away from the target on that visual side, so check that axis.
+        switch rtlSide(side) {
+        case .top:
+            return top >= safeAreaInsets.top
+        case .bottom:
+            return bottom <= geo.size.height - safeAreaInsets.bottom
+        case .trailing, .leading:
+            // Horizontal placement: the mirrored center already encodes which
+            // physical edge the bubble sits against, so just verify both x edges
+            // are on screen.
+            return left >= 0 && right <= geo.size.width
+        }
+    }
 }
 
 extension TooltipHolderView {
