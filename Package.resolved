@@ -23,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/abadiHariri/SwiftUIOverlayContainer.git",
       "state" : {
-        "revision" : "80f06c1a37819e5d25ba860db99a52320c3baf01",
-        "version" : "2.5.1"
+        "revision" : "32d59d5828d6890bb4e48c410a6f22ac5f1cc26d",
+        "version" : "2.5.2"
       }
     }
   ],
