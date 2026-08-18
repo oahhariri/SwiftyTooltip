@@ -21,10 +21,10 @@
     {
       "identity" : "swiftuioverlaycontainer",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/fatbobman/SwiftUIOverlayContainer.git",
+      "location" : "https://github.com/abadiHariri/SwiftUIOverlayContainer.git",
       "state" : {
-        "revision" : "64a124ba613adc9f2bb7bf00f5a5e8b22a816d14",
-        "version" : "2.4.1"
+        "revision" : "d68c2c25f51898c9f72224e91f3537aeab093b4b",
+        "version" : "2.5.0"
       }
     }
   ],
