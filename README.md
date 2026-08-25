@@ -93,6 +93,9 @@ enum HomeToolTips: TooltipItemConfigType {
 
     var backgroundColor: Color { .black.opacity(0.9) }
 
+    // Optional — defaults to `13`.
+    var cornerRadius: CGFloat { 13 }
+
     var arrowWidth: CGFloat { 12 }
 
     var spotlightCutInteractive: Bool { true }
@@ -100,6 +103,15 @@ enum HomeToolTips: TooltipItemConfigType {
     var spotlightCutPadding: CGFloat { 4 }
 
     var spotlightCutCornerRadius: CornerRadius { .rounded(8) }
+
+    // Optional — defaults to `.default` (the SDK's built-in shadow).
+    // Use `.none` to remove it, or build your own.
+    var shadow: TooltipShadow {
+        switch self {
+        case .firstLabel: return .none
+        case .secondLabel: return TooltipShadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 2)
+        }
+    }
 
     private var rawValue: String {
         switch self {

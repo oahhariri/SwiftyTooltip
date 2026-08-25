@@ -62,8 +62,8 @@ internal struct TooltipItemView<Context: TooltipContextType,
                           dismissToolTip: handelDismissToolTip) { tooltipInfo in
             self.tooltipContent(tooltipInfo)
                 .background(tooltipInfo.backgroundColor)
-                .cornerRadius(13)
-                .shadow(color: Color.black.opacity(0.4), radius: 9, x: 0, y: 3)
+                .cornerRadius(tooltipInfo.cornerRadius)
+                .tooltipShadow(tooltipInfo.shadow)
         }
     }
     
