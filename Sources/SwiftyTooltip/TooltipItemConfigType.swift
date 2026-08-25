@@ -13,18 +13,30 @@ public protocol TooltipItemConfigType: Identifiable&Equatable {
     var backgroundBehavuior: TooltipBackgroundBehavuior { get }
     var spacing: CGFloat { get }
     var backgroundColor: Color { get }
+    /// The corner radius of the tooltip bubble.
+    var cornerRadius: CGFloat { get }
     var arrowWidth: CGFloat { get }
     var spotlightCutInteractive: Bool { get }
     var spotlightCutPadding: CGFloat { get }
     var spotlightCutCornerRadius: CornerRadius { get }
     /// How the tooltip animates in when it appears.
     var appearanceAnimation: TooltipAppearanceAnimation { get }
+    /// The shadow drawn behind the tooltip bubble.
+    var shadow: TooltipShadow { get }
 }
 
 public extension TooltipItemConfigType {
     /// Defaults to the classic jump animation so existing conformers keep their
     /// current behaviour without any change.
     var appearanceAnimation: TooltipAppearanceAnimation { .jump }
+
+    /// Defaults to the shadow the SDK has always drawn, so existing conformers
+    /// keep their current look without any change. Use `.none` to drop it.
+    var shadow: TooltipShadow { .default }
+
+    /// Defaults to the radius the SDK has always used, so existing conformers
+    /// keep their current look without any change. Use `0` for square corners.
+    var cornerRadius: CGFloat { 13 }
 }
 
 public enum TooltipBackgroundBehavuior: String {
