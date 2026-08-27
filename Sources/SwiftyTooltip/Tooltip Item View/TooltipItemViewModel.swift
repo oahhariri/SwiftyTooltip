@@ -53,8 +53,16 @@ class TooltipItemViewModel<Context: TooltipContextType,Item: TooltipItemConfigTy
         await setTooltipInfo(.init(item: item, targetFrame: targetFrame))
     }
     
+    /// Publishes the tooltip, skipping an assignment that changes nothing.
+    ///
+    /// Every registered target in this context drives an `assign`, so an open
+    /// tooltip is re-assigned an identical model whenever *any* other target
+    /// registers. Republishing it re-renders the presenter for no visible
+    /// change; every observer downstream (`overlayCover`, the holder view's
+    /// `onChange`) is equality-gated anyway, so skipping it is invisible.
     @MainActor
     private func setTooltipInfo(_ tooltipInfoModel: TooltipInfoModel<Item>) async {
+        guard self.tooltipInfo != tooltipInfoModel else { return }
         self.tooltipInfo = tooltipInfoModel
     }
 }

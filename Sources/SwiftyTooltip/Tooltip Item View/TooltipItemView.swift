@@ -40,14 +40,14 @@ internal struct TooltipItemView<Context: TooltipContextType,
                 Task { await assign(item: item, viewModel.context.id) }
             }
             .onDisappear {
-                reset()
+                reset(force: true)
             }
             .onFirstAppear {
                 Task { await  assign(item: item, viewModel.context.id) }
             }
             .uiKitViewControllerLifeCycle { lifecycle in
                 guard lifecycle == .onDeinit || lifecycle == .viewDidDisappear || lifecycle == .viewWillDisappear else { return }
-                reset()
+                reset(force: true)
             }
             .overlayCover(contextId: viewModel.context.id,$viewModel.tooltipInfo) { tooltipInfo in
                 show(tooltipInfo: tooltipInfo)
@@ -72,7 +72,7 @@ internal struct TooltipItemView<Context: TooltipContextType,
             switch action {
             case .register(let context, id: let id, frame: let frame):
                 await viewModel.registerTarget(context,id, frame: frame)
-                await assign(item: item, context)
+                await assignOnRegister(item: item, context)
             case .unregister(let context,id: let id):
                 await viewModel.unregisterTarget(context,id)
                 await assign(item: item, context)
@@ -82,9 +82,26 @@ internal struct TooltipItemView<Context: TooltipContextType,
 }
 
 extension TooltipItemView {
+    /// Clears whatever this presenter is showing.
+    ///
+    /// When nothing is presented this is a no-op: writing `nil` over `nil` on an
+    /// `@Published` still fires `objectWillChange` (re-rendering the whole
+    /// wrapped content), and the dismiss would sweep an already-empty container
+    /// through a `DispatchQueue.main.async` hop into the shared
+    /// `ContainerManager`. Both used to run once per frame on the register path.
+    ///
+    /// `force` keeps the container sweep on the teardown paths (`onDisappear`,
+    /// view-controller lifecycle), where the point is to guarantee nothing is
+    /// left behind even if this presenter never tracked it — those fire once,
+    /// not per frame.
     @MainActor
-    private func reset() {
-        viewModel.tooltipInfo = nil
+    private func reset(force: Bool = false) {
+        let isPresenting = viewModel.tooltipInfo != nil
+        guard isPresenting || force else { return }
+
+        if isPresenting {
+            viewModel.tooltipInfo = nil
+        }
         OverlayContainersHelper.dismiss(contextId:  viewModel.context.id,animated: true)
     }
     
@@ -97,6 +114,25 @@ extension TooltipItemView {
         reset()
     }
     
+    /// `assign` for the `.register` path only.
+    ///
+    /// A target re-registers on EVERY frame it moves (see `getViewFrame`), so
+    /// this runs at display rate while anything on screen animates. With no item
+    /// presented, `assign` can only fall through its own guard into
+    /// `resetHelper` -> `reset()` — resetting an already-empty presenter, which
+    /// hops to the main actor and pokes `ContainerManager`'s app-wide singleton
+    /// once per frame for nothing.
+    ///
+    /// Nothing is lost: opening a tooltip goes through `onChange(of: item)`, not
+    /// through `.register`, and while one IS open `item != nil`, so a moving
+    /// target still re-anchors it. `.unregister` is deliberately left alone — it
+    /// is the cleanup path and fires once, not per frame.
+    @TooltipsBackgroundActor
+    private func assignOnRegister(item: Item?, _ context: String) async {
+        guard item != nil else { return }
+        await assign(item: item, context)
+    }
+
     @TooltipsBackgroundActor
     private func assign(item: Item?, _ context: String) async {
         guard let item,
