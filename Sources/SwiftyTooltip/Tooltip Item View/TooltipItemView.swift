@@ -43,7 +43,19 @@ internal struct TooltipItemView<Context: TooltipContextType,
                 reset(force: true)
             }
             .onFirstAppear {
-                Task { await  assign(item: item, viewModel.context.id) }
+                Task {
+                    // Before the guards below, a presenter always swept this
+                    // context's container on mount: with no item — or, far more
+                    // commonly, before any target had registered yet — `assign`
+                    // fell through to `reset()`. `reset()` is now a no-op when
+                    // nothing is presented, so that sweep is made explicit here
+                    // instead of being an accident of the fall-through. It keeps
+                    // the old guarantee that a presenter starts from a clean
+                    // container, and runs before the assign below so it can
+                    // never land after a show. Once per presenter, not per frame.
+                    reset(force: true)
+                    await assign(item: item, viewModel.context.id)
+                }
             }
             .uiKitViewControllerLifeCycle { lifecycle in
                 guard lifecycle == .onDeinit || lifecycle == .viewDidDisappear || lifecycle == .viewWillDisappear else { return }
