@@ -14,7 +14,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/fatbobman/SwiftUIOverlayContainer.git", from: "2.0.0"),
-        .package(url: "https://github.com/siteline/swiftui-introspect", "1.3.0"..<"27.0.0"),
+        .package(url: "https://github.com/siteline/swiftui-introspect", "27.0.0"..<"28.0.0"),
         .package(
            url: "https://github.com/apple/swift-collections.git",
            .upToNextMajor(from: "1.0.5")
