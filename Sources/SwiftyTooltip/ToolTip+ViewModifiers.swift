@@ -25,6 +25,10 @@ struct TooltipEnvironmentModifier: ViewModifier {
     }
 }
 
+extension EnvironmentValues {
+    @Entry var tooltipCentersOnTargetInRTL: Bool = false
+}
+
 // MARK: - View Extensions
 
 public extension View {
@@ -35,6 +39,11 @@ public extension View {
     
     @ViewBuilder func tooltipContainer<ContextType: TooltipContextType>(_ context: ContextType) -> some View {
         modifier(TooltipEnvironmentModifier(context: context.id))
+    }
+    
+    /// Off by default. Apply it after `tooltipContainer(_:)` or on an ancestor of it.
+    @ViewBuilder func tooltipCentersOnTargetInRTL(_ isEnabled: Bool) -> some View {
+        environment(\.tooltipCentersOnTargetInRTL, isEnabled)
     }
     
     @ViewBuilder func tooltipTarget<Context: TooltipContextType>(context: Context, _ id: String) -> some View {
