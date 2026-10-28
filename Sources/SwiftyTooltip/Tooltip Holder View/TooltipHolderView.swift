@@ -15,6 +15,7 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
 
     @Environment(\.layoutDirection) var layoutDirection
     @Environment(\.safeAreaInsets) private var safeAreaInsets
+    @Environment(\.tooltipCentersOnTargetInRTL) private var centersOnTargetInRTL
 
     @State private var tooltipSize: CGSize = .zero
 
@@ -154,9 +155,10 @@ extension TooltipHolderView {
         let targetFrame = tooltipInfo.targetFrame
 
         // Target center expressed in the SAME `.position` space as `tooltipPosition`.
-        // The existing position math leaves x un-mirrored for top/bottom sides but
-        // mirrors it (geo.width - x) for leading/trailing sides in RTL; we mirror
-        // the target center the same way so it coincides with the on-screen target
+        // The position math leaves x un-mirrored for unclamped top/bottom sides
+        // (unless `tooltipCentersOnTargetInRTL` is on) but mirrors it
+        // (geo.width - x) for leading/trailing sides in RTL; we mirror
+        // the target center for every side so it coincides with the on-screen target
         // in both LTR and RTL. (Using the raw, un-mirrored `targetFrame.midX`
         // directly was the bug that made the bubble emerge from a screen corner.)
         let targetCenter = targetCenterInPositionSpace(tooltipInfo, geo: geo)
@@ -409,6 +411,9 @@ extension TooltipHolderView {
                 xPos = geo.size.width - (edgePadding + (tooltipSize.width / 2))
             } else if shouldShiftRight {
                 xPos = edgePadding + (tooltipSize.width / 2)
+            } else if isRTL && centersOnTargetInRTL {
+                // `.position` mirrors x in RTL: mirror the target's midX so the tooltip centers on it
+                xPos = geo.size.width - xPos
             }
 
         case .trailing, .leading:
