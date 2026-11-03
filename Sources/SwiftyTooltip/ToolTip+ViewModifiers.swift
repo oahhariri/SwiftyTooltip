@@ -27,6 +27,8 @@ struct TooltipEnvironmentModifier: ViewModifier {
 
 extension EnvironmentValues {
     @Entry var tooltipCentersOnTargetInRTL: Bool = false
+    @Entry var tooltipLeftInset: CGFloat = 0
+    @Entry var tooltipRightInset: CGFloat = 0
 }
 
 // MARK: - View Extensions
@@ -44,6 +46,12 @@ public extension View {
     /// Off by default. Apply it after `tooltipContainer(_:)` or on an ancestor of it.
     @ViewBuilder func tooltipCentersOnTargetInRTL(_ isEnabled: Bool) -> some View {
         environment(\.tooltipCentersOnTargetInRTL, isEnabled)
+    }
+    
+    /// Zero by default. Keeps top and bottom tooltips this far from the left and right screen edges, in both directions (for example clear of a side bar). Apply it after `tooltipContainer(_:)` or on an ancestor of it.
+    @ViewBuilder func tooltipHorizontalInsets(left: CGFloat, right: CGFloat) -> some View {
+        environment(\.tooltipLeftInset, left)
+            .environment(\.tooltipRightInset, right)
     }
     
     @ViewBuilder func tooltipTarget<Context: TooltipContextType>(context: Context, _ id: String) -> some View {
