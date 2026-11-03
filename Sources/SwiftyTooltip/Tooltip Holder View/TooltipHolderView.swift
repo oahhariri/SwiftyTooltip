@@ -16,6 +16,8 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
     @Environment(\.layoutDirection) var layoutDirection
     @Environment(\.safeAreaInsets) private var safeAreaInsets
     @Environment(\.tooltipCentersOnTargetInRTL) private var centersOnTargetInRTL
+    @Environment(\.tooltipLeftInset) private var leftInset
+    @Environment(\.tooltipRightInset) private var rightInset
 
     @State private var tooltipSize: CGSize = .zero
 
@@ -403,14 +405,17 @@ extension TooltipHolderView {
         switch rtlSide(side) {
         case .top, .bottom:
             let isRTL = layoutDirection == .rightToLeft
+            let minX = leftInset + edgePadding
+            let maxX = geo.size.width - rightInset
 
-            let shouldShiftLeft = (isRTL && leftEdge < edgePadding) || (!isRTL && rightEdge > geo.size.width)
-            let shouldShiftRight = (isRTL && rightEdge > geo.size.width) || (!isRTL && leftEdge < edgePadding)
+            let shouldShiftLeft = (isRTL && leftEdge < minX) || (!isRTL && rightEdge > maxX)
+            let shouldShiftRight = (isRTL && rightEdge > maxX) || (!isRTL && leftEdge < minX)
 
+            // `.position` mirrors x in RTL, so the edge a shift keeps the tooltip off swaps with the direction
             if shouldShiftLeft {
-                xPos = geo.size.width - (edgePadding + (tooltipSize.width / 2))
+                xPos = geo.size.width - ((isRTL ? leftInset : rightInset) + edgePadding + (tooltipSize.width / 2))
             } else if shouldShiftRight {
-                xPos = edgePadding + (tooltipSize.width / 2)
+                xPos = (isRTL ? rightInset : leftInset) + edgePadding + (tooltipSize.width / 2)
             } else if isRTL && centersOnTargetInRTL {
                 // `.position` mirrors x in RTL: mirror the target's midX so the tooltip centers on it
                 xPos = geo.size.width - xPos
