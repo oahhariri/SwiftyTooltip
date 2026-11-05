@@ -405,8 +405,10 @@ extension TooltipHolderView {
         switch rtlSide(side) {
         case .top, .bottom:
             let isRTL = layoutDirection == .rightToLeft
-            let minX = leftInset + edgePadding
-            let maxX = geo.size.width - rightInset
+            // drawn mirrored (RTL, not centered on the target), the left edge here is the tooltip's right edge on screen
+            let isMirrored = isRTL && !centersOnTargetInRTL
+            let minX = (isMirrored ? rightInset : leftInset) + edgePadding
+            let maxX = geo.size.width - (isMirrored ? leftInset : rightInset)
 
             let shouldShiftLeft = (isRTL && leftEdge < minX) || (!isRTL && rightEdge > maxX)
             let shouldShiftRight = (isRTL && rightEdge > maxX) || (!isRTL && leftEdge < minX)
