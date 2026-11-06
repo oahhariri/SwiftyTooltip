@@ -8,8 +8,8 @@
 import SwiftUI
 
 enum TooltipActions {
-    case register(_ context: String, id: String, frame: CGRect)
-    case unregister(_ context: String, id: String)
+    case register(_ context: String, id: String, owner: UUID, frame: CGRect)
+    case unregister(_ context: String, id: String, owner: UUID)
 }
 
 struct TooltipActionEnvironment : Equatable, Hashable, @unchecked Sendable {
