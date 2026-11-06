@@ -16,6 +16,8 @@ import OrderedCollections
 class TooltipItemViewModel<Context: TooltipContextType,Item: TooltipItemConfigType>: ObservableObject {
     let context: Context
     private var targets: OrderedDictionary<String, CGRect> = [:]
+    // Every live view per target id, last registered last: a leaving view's late unregister must not drop the arriving one
+    private var owners: [String: OrderedDictionary<UUID, CGRect>] = [:]
     @Published var tooltipInfo: TooltipInfoModel<Item>?
     
     init(context: Context) {
@@ -33,15 +35,23 @@ class TooltipItemViewModel<Context: TooltipContextType,Item: TooltipItemConfigTy
     }
     
     @TooltipsBackgroundActor
-    func registerTarget(_ context: String,_ id: String, frame: CGRect) {
+    func registerTarget(_ context: String,_ id: String, owner: UUID, frame: CGRect) {
         guard context == self.context.id else {return}
+        owners[id, default: [:]].removeValue(forKey: owner)
+        owners[id, default: [:]][owner] = frame
         self.targets[id] = frame
     }
     
     @TooltipsBackgroundActor
-    func unregisterTarget(_ context: String,_ id: String) {
+    func unregisterTarget(_ context: String,_ id: String, owner: UUID) {
         guard context == self.context.id else {return}
-        targets.removeValue(forKey: id)
+        owners[id]?.removeValue(forKey: owner)
+        if let frame = owners[id]?.values.last {
+            targets[id] = frame
+        } else {
+            owners.removeValue(forKey: id)
+            targets.removeValue(forKey: id)
+        }
     }
     
     @TooltipsBackgroundActor

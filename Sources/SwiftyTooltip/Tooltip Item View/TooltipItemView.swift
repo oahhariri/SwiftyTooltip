@@ -82,11 +82,11 @@ internal struct TooltipItemView<Context: TooltipContextType,
     func handelActions(_ action: TooltipActions) {
         Task {@TooltipsBackgroundActor in
             switch action {
-            case .register(let context, id: let id, frame: let frame):
-                await viewModel.registerTarget(context,id, frame: frame)
+            case .register(let context, id: let id, owner: let owner, frame: let frame):
+                await viewModel.registerTarget(context,id, owner: owner, frame: frame)
                 await assignOnRegister(item: item, context)
-            case .unregister(let context,id: let id):
-                await viewModel.unregisterTarget(context,id)
+            case .unregister(let context,id: let id, owner: let owner):
+                await viewModel.unregisterTarget(context,id, owner: owner)
                 await assign(item: item, context)
             }
         }

@@ -16,6 +16,8 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
     let context: Context
     let id: String
     @Environment(\.tooltipActions) var tooltipActions
+    // One per target instance: two views can share an id (the same button moved to another container)
+    @State private var owner = UUID()
 
     @ViewBuilder var content: () -> Content
 
@@ -37,14 +39,15 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
     }
 
     func mainView(_ tooltipAction: TooltipActionEnvironment) -> some View {
-        // `contextId`, `targetId` and `tooltipAction` are all captured *by value*
-        // into each `@Sendable` Task closure below: String values and a Sendable
+        // `contextId`, `targetId`, `targetOwner` and `tooltipAction` are all captured *by value*
+        // into each `@Sendable` Task closure below: String and UUID values and a Sendable
         // action wrapper. Nothing mutable is shared across the actor hop. The only
-        // actor-isolated state (the `targets` dictionary) is mutated exclusively
+        // actor-isolated state (the `targets` and `owners` dictionaries) is mutated exclusively
         // inside the presenter's own `Task {@TooltipsBackgroundActor in … }` in
         // `handelActions` — never from here.
         let contextId = context.id
         let targetId = id
+        let targetOwner = owner
         return content()
             // Measure the target in `.global` (window/scene-absolute), NOT in the
             // container's named space. The tooltip overlay is injected by
@@ -61,18 +64,18 @@ struct TooltipTargetView<Content: View, Context: TooltipContextType>: View {
             // full window width, which matches global, not the inset named space.)
             .getViewFrame(coordinateSpace: .global) { frame in
                 Task {@TooltipTargetBackgroundActor in
-                    await tooltipAction(.register(contextId, id: targetId, frame: frame))
+                    await tooltipAction(.register(contextId, id: targetId, owner: targetOwner, frame: frame))
                 }
             }
             .onDisappear {
                 Task {@TooltipTargetBackgroundActor in
-                    await tooltipAction(.unregister(contextId, id: targetId))
+                    await tooltipAction(.unregister(contextId, id: targetId, owner: targetOwner))
                 }
             }
             .uiKitViewControllerLifeCycle { lifecycle in
                 guard lifecycle == .onDeinit else { return }
                 Task {@TooltipTargetBackgroundActor in
-                    await tooltipAction(.unregister(contextId, id: targetId))
+                    await tooltipAction(.unregister(contextId, id: targetId, owner: targetOwner))
                 }
             }
     }
