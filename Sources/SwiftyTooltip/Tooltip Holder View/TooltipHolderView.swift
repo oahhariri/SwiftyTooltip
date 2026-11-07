@@ -18,6 +18,8 @@ struct TooltipHolderView<Item: TooltipItemConfigType, TooltipContent: View>: Vie
     @Environment(\.tooltipCentersOnTargetInRTL) private var centersOnTargetInRTL
     @Environment(\.tooltipLeftInset) private var leftInset
     @Environment(\.tooltipRightInset) private var rightInset
+    @Environment(\.tooltipBottomInset) private var bottomInset
+    @Environment(\.tooltipStaysOnScreen) private var staysOnScreen
 
     @State private var tooltipSize: CGSize = .zero
 
@@ -293,6 +295,11 @@ extension TooltipHolderView {
         }
     }
     
+    // the bottom safe area, or a larger bottom inset such as a floating tab bar
+    private var bottomLimit: CGFloat {
+        max(safeAreaInsets.bottom, bottomInset)
+    }
+    
     func rtlSide(_ side: TooltipSide) -> TooltipSide {
         switch side {
         case .bottom: return .bottom
@@ -423,11 +430,18 @@ extension TooltipHolderView {
                 xPos = geo.size.width - xPos
             }
 
+            // a tooltip that fits on no side, kept inside the screen when the container asks for it (over its target if needed)
+            if staysOnScreen, bottomEdge > geo.size.height - bottomLimit {
+                yPos = max(geo.size.height - bottomLimit - edgePadding - tooltipSize.height/2, safeAreaInsets.top + edgePadding + tooltipSize.height/2)
+            } else if staysOnScreen, topEdge < safeAreaInsets.top {
+                yPos = safeAreaInsets.top + edgePadding + tooltipSize.height/2
+            }
+
         case .trailing, .leading:
             if topEdge < safeAreaInsets.top {
                 yPos = edgePadding + tooltipSize.height/2 + safeAreaInsets.top
-            } else if bottomEdge > geo.size.height - safeAreaInsets.bottom {
-                yPos = geo.size.height - edgePadding - tooltipSize.height/2 - safeAreaInsets.bottom
+            } else if bottomEdge > geo.size.height - bottomLimit {
+                yPos = geo.size.height - edgePadding - tooltipSize.height/2 - bottomLimit
             }
         }
 
@@ -499,12 +513,14 @@ extension TooltipHolderView {
         case .top:
             return top >= safeAreaInsets.top
         case .bottom:
-            return bottom <= geo.size.height - safeAreaInsets.bottom
+            return bottom <= geo.size.height - bottomLimit
         case .trailing, .leading:
             // Horizontal placement: the mirrored center already encodes which
             // physical edge the bubble sits against, so just verify both x edges
-            // are on screen.
-            return left >= 0 && right <= geo.size.width
+            // are on screen, clear of the side insets (in RTL the left edge here
+            // is the tooltip's right edge on screen).
+            let isRTL = layoutDirection == .rightToLeft
+            return left >= (isRTL ? rightInset : leftInset) && right <= geo.size.width - (isRTL ? leftInset : rightInset)
         }
     }
 }
