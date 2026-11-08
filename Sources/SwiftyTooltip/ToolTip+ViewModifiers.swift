@@ -29,6 +29,8 @@ extension EnvironmentValues {
     @Entry var tooltipCentersOnTargetInRTL: Bool = false
     @Entry var tooltipLeftInset: CGFloat = 0
     @Entry var tooltipRightInset: CGFloat = 0
+    @Entry var tooltipBottomInset: CGFloat = 0
+    @Entry var tooltipStaysOnScreen: Bool = false
 }
 
 // MARK: - View Extensions
@@ -48,10 +50,20 @@ public extension View {
         environment(\.tooltipCentersOnTargetInRTL, isEnabled)
     }
     
-    /// Zero by default. Keeps top and bottom tooltips this far from the left and right screen edges, in both directions (for example clear of a side bar). Apply it after `tooltipContainer(_:)` or on an ancestor of it.
+    /// Zero by default. Keeps tooltips this far from the left and right screen edges, in both directions (for example clear of a side bar): top and bottom tooltips move inward, and a leading or trailing tooltip that would run into an inset opens on another side. Apply it after `tooltipContainer(_:)` or on an ancestor of it.
     @ViewBuilder func tooltipHorizontalInsets(left: CGFloat, right: CGFloat) -> some View {
         environment(\.tooltipLeftInset, left)
             .environment(\.tooltipRightInset, right)
+    }
+    
+    /// Zero by default. Keeps tooltips this far from the bottom screen edge, or clear of the bottom safe area when that is larger (for example above a floating tab bar): a bottom tooltip that would run into it opens on top. Apply it after `tooltipContainer(_:)` or on an ancestor of it.
+    @ViewBuilder func tooltipBottomInset(_ inset: CGFloat) -> some View {
+        environment(\.tooltipBottomInset, inset)
+    }
+    
+    /// Off by default. When on, a top or bottom tooltip that fits on no side moves up or down inside the screen (below the top safe area, above the bottom edge `tooltipBottomInset(_:)` keeps clear of), over its target if needed, instead of running past the screen edge. Apply it after `tooltipContainer(_:)` or on an ancestor of it.
+    @ViewBuilder func tooltipStaysOnScreen(_ isEnabled: Bool) -> some View {
+        environment(\.tooltipStaysOnScreen, isEnabled)
     }
     
     @ViewBuilder func tooltipTarget<Context: TooltipContextType>(context: Context, _ id: String) -> some View {
